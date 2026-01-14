@@ -501,52 +501,74 @@
                     <h2>Oil Production</h2>
                     <span class="breadcrumb">Aggregate production across all wells</span>
                 </header>
-                <section class="card production-card aggregate-chart-card">
-                    <div class="production-header">
-                        <h3>Total Oil Production Over Time</h3>
-                        <div class="date-range-selector" id="oilChartDateSelector">
-                            <label>
-                                <span>From</span>
-                                <input type="date" id="oilChartStartDate">
-                            </label>
-                            <label>
-                                <span>To</span>
-                                <input type="date" id="oilChartEndDate">
-                            </label>
-                            <button class="btn-reset-dates" id="btnResetOilDates" title="Reset to full range">Reset</button>
+                <div class="aggregate-chart-layout">
+                    <section class="card production-card aggregate-chart-card">
+                        <div class="production-header">
+                            <h3>Total Oil Production Over Time</h3>
+                            <div class="date-range-selector" id="oilChartDateSelector">
+                                <label>
+                                    <span>From</span>
+                                    <input type="date" id="oilChartStartDate">
+                                </label>
+                                <label>
+                                    <span>To</span>
+                                    <input type="date" id="oilChartEndDate">
+                                </label>
+                                <button class="btn-reset-dates" id="btnResetOilDates" title="Reset to full range">Reset</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="aggregate-chart-container">
-                        <canvas id="aggregateOilChart"></canvas>
-                    </div>
-                </section>
+                        <div class="aggregate-chart-container">
+                            <canvas id="aggregateOilChart"></canvas>
+                        </div>
+                    </section>
+                    <aside class="card chart-explorer" id="oilChartExplorer">
+                        <div class="explorer-header">
+                            <h4>Filter Wells</h4>
+                            <button class="btn-toggle-all" id="btnToggleAllOil">Select All</button>
+                        </div>
+                        <div class="explorer-batteries" id="oilChartBatteries">
+                            <!-- Dynamically populated with batteries and wells -->
+                        </div>
+                    </aside>
+                </div>
             </div>
 
             <!-- Aggregate Water Chart View -->
             <div id="waterChartView" class="view">
                 <header class="view-header">
-                    <h2>Water Production</h2>
-                    <span class="breadcrumb">Aggregate production across all wells</span>
+                    <h2>Water Consumption</h2>
+                    <span class="breadcrumb">Aggregate consumption across all wells</span>
                 </header>
-                <section class="card production-card aggregate-chart-card">
-                    <div class="production-header">
-                        <h3>Total Water Production Over Time</h3>
-                        <div class="date-range-selector" id="waterChartDateSelector">
-                            <label>
-                                <span>From</span>
-                                <input type="date" id="waterChartStartDate">
-                            </label>
-                            <label>
-                                <span>To</span>
-                                <input type="date" id="waterChartEndDate">
-                            </label>
-                            <button class="btn-reset-dates" id="btnResetWaterDates" title="Reset to full range">Reset</button>
+                <div class="aggregate-chart-layout">
+                    <section class="card production-card aggregate-chart-card">
+                        <div class="production-header">
+                            <h3>Total Water Consumption Over Time</h3>
+                            <div class="date-range-selector" id="waterChartDateSelector">
+                                <label>
+                                    <span>From</span>
+                                    <input type="date" id="waterChartStartDate">
+                                </label>
+                                <label>
+                                    <span>To</span>
+                                    <input type="date" id="waterChartEndDate">
+                                </label>
+                                <button class="btn-reset-dates" id="btnResetWaterDates" title="Reset to full range">Reset</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="aggregate-chart-container">
-                        <canvas id="aggregateWaterChart"></canvas>
-                    </div>
-                </section>
+                        <div class="aggregate-chart-container">
+                            <canvas id="aggregateWaterChart"></canvas>
+                        </div>
+                    </section>
+                    <aside class="card chart-explorer" id="waterChartExplorer">
+                        <div class="explorer-header">
+                            <h4>Filter Wells</h4>
+                            <button class="btn-toggle-all" id="btnToggleAllWater">Select All</button>
+                        </div>
+                        <div class="explorer-batteries" id="waterChartBatteries">
+                            <!-- Dynamically populated with batteries and wells -->
+                        </div>
+                    </aside>
+                </div>
             </div>
 
             <!-- Aggregate Gas Chart View -->
@@ -555,25 +577,36 @@
                     <h2>Gas Production</h2>
                     <span class="breadcrumb">Aggregate production across all wells</span>
                 </header>
-                <section class="card production-card aggregate-chart-card">
-                    <div class="production-header">
-                        <h3>Total Gas Production Over Time</h3>
-                        <div class="date-range-selector" id="gasChartDateSelector">
-                            <label>
-                                <span>From</span>
-                                <input type="date" id="gasChartStartDate">
-                            </label>
-                            <label>
-                                <span>To</span>
-                                <input type="date" id="gasChartEndDate">
-                            </label>
-                            <button class="btn-reset-dates" id="btnResetGasDates" title="Reset to full range">Reset</button>
+                <div class="aggregate-chart-layout">
+                    <section class="card production-card aggregate-chart-card">
+                        <div class="production-header">
+                            <h3>Total Gas Production Over Time</h3>
+                            <div class="date-range-selector" id="gasChartDateSelector">
+                                <label>
+                                    <span>From</span>
+                                    <input type="date" id="gasChartStartDate">
+                                </label>
+                                <label>
+                                    <span>To</span>
+                                    <input type="date" id="gasChartEndDate">
+                                </label>
+                                <button class="btn-reset-dates" id="btnResetGasDates" title="Reset to full range">Reset</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="aggregate-chart-container">
-                        <canvas id="aggregateGasChart"></canvas>
-                    </div>
-                </section>
+                        <div class="aggregate-chart-container">
+                            <canvas id="aggregateGasChart"></canvas>
+                        </div>
+                    </section>
+                    <aside class="card chart-explorer" id="gasChartExplorer">
+                        <div class="explorer-header">
+                            <h4>Filter Wells</h4>
+                            <button class="btn-toggle-all" id="btnToggleAllGas">Select All</button>
+                        </div>
+                        <div class="explorer-batteries" id="gasChartBatteries">
+                            <!-- Dynamically populated with batteries and wells -->
+                        </div>
+                    </aside>
+                </div>
             </div>
         </main>
     </div>

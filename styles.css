@@ -94,18 +94,157 @@ body {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    transition: width 0.3s ease, transform 0.3s ease;
+    overflow-x: hidden;
+}
+
+/* Collapsed sidebar state */
+.sidebar.collapsed {
+    width: 60px;
+}
+
+.sidebar.collapsed .sidebar-header h1,
+.sidebar.collapsed .nav-section-title,
+.sidebar.collapsed .nav-item-label,
+.sidebar.collapsed .nav-battery-name,
+.sidebar.collapsed .nav-well-name,
+.sidebar.collapsed .upload-indicator,
+.sidebar.collapsed .theme-toggle-label,
+.sidebar.collapsed .nav-section-chevron {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+    padding: 18px 10px;
+    justify-content: center;
+}
+
+.sidebar.collapsed .logo-link {
+    display: none;
+}
+
+.sidebar.collapsed .nav-item {
+    padding: 10px 18px;
+    justify-content: center;
+}
+
+.sidebar.collapsed .nav-section-header {
+    display: none;
+}
+
+.sidebar.collapsed .nav-item .icon,
+.sidebar.collapsed .nav-item-icon {
+    margin-right: 0;
+}
+
+.sidebar.collapsed .nav-section-item .nav-item {
+    padding: 12px 18px;
+}
+
+/* Keep Home section items visible as icons in collapsed state */
+.sidebar.collapsed #home-section .nav-section-children {
+    display: block !important;
+}
+
+/* Hide Wells section entirely in collapsed state */
+.sidebar.collapsed #wells-section {
+    display: none;
+}
+
+.sidebar.collapsed .nav-children {
+    display: none !important;
+}
+
+.sidebar.collapsed .sidebar-footer {
+    padding: 10px;
+}
+
+.sidebar.collapsed .theme-toggle {
+    padding: 10px;
+    justify-content: center;
+}
+
+/* Tooltip for collapsed icons */
+.sidebar.collapsed .nav-section-item .nav-item {
+    position: relative;
+}
+
+.sidebar.collapsed .nav-section-item .nav-item::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    margin-left: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+}
+
+.sidebar.collapsed .nav-section-item .nav-item:hover::after {
+    opacity: 1;
 }
 
 .sidebar-header {
     padding: 18px 20px;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-tertiary);
-    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Hamburger button */
+.hamburger-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* When expanded: show X (click to collapse) */
+.hamburger-btn .hamburger-icon {
+    display: none;
+}
+
+.hamburger-btn .close-icon {
+    display: block;
+}
+
+/* When collapsed: show hamburger (click to expand) */
+.sidebar.collapsed .hamburger-btn .hamburger-icon {
+    display: block;
+}
+
+.sidebar.collapsed .hamburger-btn .close-icon {
+    display: none;
 }
 
 .sidebar-header .logo-link {
     text-decoration: none;
     display: block;
+    flex: 1;
+    text-align: center;
 }
 
 .sidebar-header .logo-link:hover h1 {
@@ -134,7 +273,8 @@ body {
 .nav-tree {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 0;
+    overflow-x: hidden;
+    padding: 0 0 16px 0;
 }
 
 .nav-tree::-webkit-scrollbar {
@@ -148,6 +288,101 @@ body {
 .nav-tree::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 3px;
+}
+
+/* Nav Sections (Home, Wells) */
+.nav-section {
+    margin-bottom: 0;
+}
+
+.nav-section + .nav-section {
+    margin-top: 0;
+}
+
+.nav-section-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.nav-section:first-child .nav-section-header {
+    border-top: none;
+}
+
+.nav-section-header:hover {
+    background: var(--bg-card);
+}
+
+.nav-section-title {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex: 1;
+}
+
+.nav-section-chevron {
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+.nav-section-header.expanded .nav-section-chevron {
+    transform: rotate(0deg);
+}
+
+.nav-section-header:not(.expanded) .nav-section-chevron {
+    transform: rotate(-90deg);
+}
+
+.nav-section-children {
+    display: none;
+}
+
+.nav-section-children.visible {
+    display: block;
+}
+
+/* Nav section items (Dashboard, Oil, Water, Gas) */
+.nav-section-item .nav-item {
+    padding: 10px 20px 10px 24px;
+}
+
+.nav-item-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.nav-item-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.nav-item-label {
+    font-weight: 500;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.nav-item:hover .nav-item-label,
+.nav-item.active .nav-item-label {
+    color: var(--text-primary);
+}
+
+.nav-item:hover .nav-item-icon,
+.nav-item.active .nav-item-icon {
+    color: var(--text-secondary);
 }
 
 .nav-lease {
@@ -479,6 +714,259 @@ body {
 .chart-container {
     position: relative;
     height: 280px;
+}
+
+/* Aggregate chart views */
+.aggregate-chart-card {
+    max-width: 100%;
+}
+
+.aggregate-chart-container {
+    position: relative;
+    height: 500px;
+    margin-top: 20px;
+}
+
+/* Aggregate chart layout with explorer */
+.aggregate-chart-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 20px;
+    align-items: start;
+}
+
+.aggregate-chart-layout .aggregate-chart-card {
+    min-width: 0;
+}
+
+/* Chart Explorer Panel */
+.chart-explorer {
+    padding: 16px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.explorer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.explorer-header h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.btn-toggle-all {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-toggle-all:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.explorer-batteries {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.explorer-battery {
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.explorer-battery-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.explorer-battery-header:hover {
+    background: var(--bg-card);
+}
+
+.battery-name {
+    flex: 1;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.battery-count {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.btn-expand-battery {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-expand-battery:hover {
+    color: var(--text-secondary);
+}
+
+.explorer-battery.expanded .btn-expand-battery {
+    transform: rotate(180deg);
+}
+
+/* Explorer wells list */
+.explorer-wells {
+    display: none;
+    padding: 8px 12px 12px 36px;
+    background: var(--bg-secondary);
+    flex-direction: column;
+    gap: 6px;
+}
+
+.explorer-wells.expanded {
+    display: flex;
+}
+
+.explorer-well {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.explorer-well .well-name {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.explorer-well:hover .well-name {
+    color: var(--text-primary);
+}
+
+/* Custom checkbox styling */
+.explorer-checkbox {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.explorer-checkbox input,
+.explorer-well input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.explorer-checkbox .checkmark,
+.explorer-well .checkmark {
+    height: 16px;
+    width: 16px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.explorer-checkbox:hover .checkmark,
+.explorer-well:hover .checkmark {
+    border-color: var(--text-muted);
+}
+
+.explorer-checkbox input:checked ~ .checkmark,
+.explorer-well input:checked ~ .checkmark {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.explorer-checkbox .checkmark::after,
+.explorer-well .checkmark::after {
+    content: '';
+    display: none;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 2px;
+}
+
+.explorer-checkbox input:checked ~ .checkmark::after,
+.explorer-well input:checked ~ .checkmark::after {
+    display: block;
+}
+
+/* Indeterminate state */
+.explorer-checkbox input:indeterminate ~ .checkmark {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.explorer-checkbox input:indeterminate ~ .checkmark::after {
+    display: block;
+    width: 8px;
+    height: 2px;
+    border: none;
+    background: white;
+    transform: none;
+    margin: 0;
+}
+
+.explorer-empty {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .aggregate-chart-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-explorer {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .aggregate-chart-container {
+        height: 350px;
+    }
+    
+    .chart-explorer {
+        max-height: 250px;
+    }
 }
 
 /* Multi-chart layout for production card */
@@ -1259,6 +1747,10 @@ tbody tr:nth-child(even) {
     margin-bottom: 28px;
 }
 
+.stats-grid.stats-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
 .stat-card-compact {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -1450,6 +1942,10 @@ tbody tr:nth-child(even) {
         grid-template-columns: repeat(2, 1fr);
     }
     
+    .stats-grid.stats-grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
     .dashboard-main-grid {
         grid-template-columns: 1fr;
     }
@@ -1475,6 +1971,10 @@ tbody tr:nth-child(even) {
         gap: 12px;
     }
     
+    .stats-grid.stats-grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
     .stat-card-compact {
         padding: 16px;
     }
@@ -1486,11 +1986,35 @@ tbody tr:nth-child(even) {
     .dashboard-title h2 {
         font-size: 1.5rem;
     }
+    
+    /* Sidebar mobile */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+        transform: translateX(-100%);
+    }
+    
+    .sidebar:not(.collapsed) {
+        transform: translateX(0);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .sidebar.collapsed {
+        width: var(--sidebar-width);
+        transform: translateX(-100%);
+    }
 }
 
 @media (max-width: 480px) {
     .stats-grid {
         grid-template-columns: 1fr 1fr;
+    }
+    
+    .stats-grid.stats-grid-3 {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -2007,6 +2531,7 @@ tbody tr:nth-child(even) {
     padding: 16px;
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
+    overflow: hidden;
 }
 
 .theme-toggle {
