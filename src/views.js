@@ -217,7 +217,7 @@ function renderPressureTable(readings) {
     const tbody = document.querySelector('#pressureTable tbody');
 
     if (!readings || readings.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #6b7280;">No pressure data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #6b7280;">No pressure data</td></tr>';
         return;
     }
 
@@ -227,6 +227,7 @@ function renderPressureTable(readings) {
             <td>${r.casingPsi || '-'}</td>
             <td>${r.tubingPsi || '-'}</td>
             <td>${r.flowlinePsi || '-'}</td>
+            <td>${r.injVol || '-'}</td>
         </tr>
     `).join('');
 }

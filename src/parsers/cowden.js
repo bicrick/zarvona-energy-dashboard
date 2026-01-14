@@ -16,6 +16,16 @@ export const CowdenParser = {
         { id: '602h', name: 'Cowden 602H', oilCol: 7, waterCol: 8, gasCol: 9 },
         { id: 'angus', name: 'Angus 7-18-1H', oilCol: 13, waterCol: 14, gasCol: 15 }
     ],
+    pressureConfig: {
+        sheet: 'Cowden',
+        headerRowIndex: 6,
+        dateCol: 0,
+        wells: {
+            '601h': { csg: 28, tbg: 29, fl: 30, inj: 31 },
+            '602h': { csg: 33, tbg: 34, fl: 35, inj: 40 },
+            'angus': { csg: 42, tbg: 43, fl: 44, inj: 47 }
+        }
+    },
 
     /**
      * Parse the uploaded workbook
@@ -37,6 +47,10 @@ export const CowdenParser = {
             const wellTestData = this.parseWellTestSheet(workbook.Sheets['Well Test']);
             result.wells = wellTestData.wells;
             result.rawRowCount = wellTestData.rowCount;
+        }
+
+        if (result.wells.length > 0) {
+            this.applyPressureReadings(workbook, result.wells);
         }
 
         // Parse Run Tickets sheet
@@ -130,6 +144,52 @@ export const CowdenParser = {
         return { wells, rowCount };
     },
 
+    applyPressureReadings(workbook, wells) {
+        const config = this.pressureConfig;
+        if (!config) return;
+        const sheet = workbook.Sheets[config.sheet];
+        if (!sheet) return;
+
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        if (!data || data.length === 0) return;
+
+        const readingsByWell = {};
+        wells.forEach(well => {
+            readingsByWell[well.id] = [];
+        });
+
+        for (let i = config.headerRowIndex + 1; i < data.length; i++) {
+            const row = data[i];
+            if (!row) continue;
+            const dateStr = this.parseDate(row[config.dateCol]);
+            if (!dateStr) continue;
+
+            Object.entries(config.wells).forEach(([wellId, cols]) => {
+                if (!readingsByWell[wellId]) return;
+                const casingPsi = this.parseNumber(row[cols.csg]);
+                const tubingPsi = this.parseNumber(row[cols.tbg]);
+                const flowlinePsi = this.parseNumber(row[cols.fl]);
+                const injVol = this.parseNumber(row[cols.inj]);
+
+                if (casingPsi !== null || tubingPsi !== null || flowlinePsi !== null || injVol !== null) {
+                    readingsByWell[wellId].push({
+                        date: dateStr,
+                        casingPsi,
+                        tubingPsi,
+                        flowlinePsi,
+                        injVol
+                    });
+                }
+            });
+        }
+
+        wells.forEach(well => {
+            const readings = readingsByWell[well.id] || [];
+            readings.sort((a, b) => new Date(b.date) - new Date(a.date));
+            well.pressureReadings = readings.slice(0, 60);
+        });
+    },
+
     /**
      * Parse the Run Tickets sheet
      */
@@ -187,6 +247,17 @@ export const CowdenParser = {
         });
 
         return tickets.slice(0, 100);
+    },
+
+    parseDate(val) {
+        if (!val) return null;
+        if (val instanceof Date) return val.toISOString().split('T')[0];
+        if (typeof val === 'number') {
+            const date = XLSX.SSF.parse_date_code(val);
+            if (date) return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+        }
+        if (typeof val === 'string') return val.split(' ')[0];
+        return null;
     },
 
     /**

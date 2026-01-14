@@ -317,6 +317,7 @@ function renderPressureReadingsForm(data) {
                 <td><input type="number" class="edit-table-input" name="casingPsi" value="${row.casingPsi || ''}" placeholder="-"></td>
                 <td><input type="number" class="edit-table-input" name="tubingPsi" value="${row.tubingPsi || ''}" placeholder="-"></td>
                 <td><input type="number" class="edit-table-input" name="flowlinePsi" value="${row.flowlinePsi || ''}" placeholder="-"></td>
+                <td><input type="number" class="edit-table-input" name="injVol" value="${row.injVol || ''}" placeholder="-"></td>
                 <td>
                     <button type="button" class="btn-delete-row" title="Delete row">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -338,6 +339,7 @@ function renderPressureReadingsForm(data) {
                         <th>Casing PSI</th>
                         <th>Tubing PSI</th>
                         <th>Flowline PSI</th>
+                        <th>Inj Vol</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -368,6 +370,7 @@ function initializePressureReadingsHandlers() {
                 <td><input type="number" class="edit-table-input" name="casingPsi" placeholder="-"></td>
                 <td><input type="number" class="edit-table-input" name="tubingPsi" placeholder="-"></td>
                 <td><input type="number" class="edit-table-input" name="flowlinePsi" placeholder="-"></td>
+                <td><input type="number" class="edit-table-input" name="injVol" placeholder="-"></td>
                 <td>
                     <button type="button" class="btn-delete-row" title="Delete row">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -496,13 +499,15 @@ function readPressureReadingsForm() {
         const casingPsi = row.querySelector('input[name="casingPsi"]')?.value;
         const tubingPsi = row.querySelector('input[name="tubingPsi"]')?.value;
         const flowlinePsi = row.querySelector('input[name="flowlinePsi"]')?.value;
+        const injVol = row.querySelector('input[name="injVol"]')?.value;
 
-        if (date || casingPsi || tubingPsi || flowlinePsi) {
+        if (date || casingPsi || tubingPsi || flowlinePsi || injVol) {
             data.push({
                 date: date || null,
                 casingPsi: casingPsi ? Number(casingPsi) : null,
                 tubingPsi: tubingPsi ? Number(tubingPsi) : null,
-                flowlinePsi: flowlinePsi ? Number(flowlinePsi) : null
+                flowlinePsi: flowlinePsi ? Number(flowlinePsi) : null,
+                injVol: injVol ? Number(injVol) : null
             });
         }
     });

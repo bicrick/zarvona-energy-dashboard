@@ -38,6 +38,36 @@ export const SouthAndrewsParser = {
         { id: 'sawgrass-5h', name: 'Sawgrass 5H', oilCol: 43, waterCol: 44, gasCol: 45, status: 'active' }
     ],
 
+    pressureConfig: [
+        {
+            sheet: '36-4H',
+            headerRowIndex: 8,
+            dateCol: 0,
+            wells: {
+                'uls-1-36-1h': { csg: 61, tbg: 62, fl: 63, inj: 64 },
+                'uls-1-36-2h': { csg: 68, tbg: 69, fl: 70, inj: 71 },
+                'uls-1-36-3h': { csg: 73, tbg: 74, fl: 75, inj: 76 },
+                'uls-1-36-4h': { csg: 78, tbg: 79, fl: 80, inj: 81 },
+                'uls-1-36-5h': { csg: 86, tbg: 87, fl: 88, inj: 89 },
+                'uls-1-36-6h': { csg: 91, tbg: 92, fl: 93, inj: 94 },
+                'uls-1-37-1h': { csg: 96, tbg: 97, fl: 98, inj: 99 },
+                'uls-1-37-3h': { csg: 101, tbg: 102, fl: 103, inj: 104 }
+            }
+        },
+        {
+            sheet: '37-6H',
+            headerRowIndex: 8,
+            dateCol: 0,
+            wells: {
+                'uls-1-31-2h': { csg: 34, tbg: 35, fl: 36, inj: 37 },
+                'uls-1-37-4h': { csg: 39, tbg: 40, fl: 41, inj: 42 },
+                'uls-1-37-6h': { csg: 44, tbg: 45, fl: 46, inj: 47 },
+                'uls-1-30-6h': { csg: 49, tbg: 50, fl: 51, inj: 52 },
+                'uls-1-30-8h': { csg: 54, tbg: 55, fl: 56, inj: 57 }
+            }
+        }
+    ],
+
     parse(workbook) {
         const result = {
             id: this.id,
@@ -58,6 +88,10 @@ export const SouthAndrewsParser = {
         if (workbook.Sheets['Well Test pg2']) {
             const pg2Data = this.parseWellTestSheet(workbook.Sheets['Well Test pg2'], this.wellsPg2);
             result.wells.push(...pg2Data.wells);
+        }
+
+        if (result.wells.length > 0) {
+            this.applyPressureReadings(workbook, result.wells);
         }
 
         // Parse run tickets from multiple sheets
@@ -141,6 +175,58 @@ export const SouthAndrewsParser = {
         }
 
         return tickets;
+    },
+
+    applyPressureReadings(workbook, wells) {
+        const wellsById = {};
+        wells.forEach(well => {
+            wellsById[well.id] = well;
+            well.pressureReadings = [];
+        });
+
+        const readingsByWell = {};
+        Object.keys(wellsById).forEach(id => {
+            readingsByWell[id] = [];
+        });
+
+        this.pressureConfig.forEach(config => {
+            const sheet = workbook.Sheets[config.sheet];
+            if (!sheet) return;
+
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+            if (!data || data.length === 0) return;
+
+            for (let i = config.headerRowIndex + 1; i < data.length; i++) {
+                const row = data[i];
+                if (!row) continue;
+                const dateStr = this.parseDate(row[config.dateCol]);
+                if (!dateStr) continue;
+
+                Object.entries(config.wells).forEach(([wellId, cols]) => {
+                    if (!readingsByWell[wellId]) return;
+                    const casingPsi = this.parseNumber(row[cols.csg]);
+                    const tubingPsi = this.parseNumber(row[cols.tbg]);
+                    const flowlinePsi = this.parseNumber(row[cols.fl]);
+                    const injVol = this.parseNumber(row[cols.inj]);
+
+                    if (casingPsi !== null || tubingPsi !== null || flowlinePsi !== null || injVol !== null) {
+                        readingsByWell[wellId].push({
+                            date: dateStr,
+                            casingPsi,
+                            tubingPsi,
+                            flowlinePsi,
+                            injVol
+                        });
+                    }
+                });
+            }
+        });
+
+        wells.forEach(well => {
+            const readings = readingsByWell[well.id] || [];
+            readings.sort((a, b) => new Date(b.date) - new Date(a.date));
+            well.pressureReadings = readings.slice(0, 60);
+        });
     },
 
     parseDate(val) {

@@ -12,6 +12,14 @@ export const Unit130Parser = {
     wells: [
         { id: 'uls-1-30-1h', name: 'ULS 1-30-1H', oilCol: 1, waterCol: 2, gasCol: 3 }
     ],
+    pressureConfig: {
+        sheet: '1-30-1H Gauge Sheet',
+        headerRowIndex: 5,
+        dateCol: 0,
+        wells: {
+            'uls-1-30-1h': { csg: 37, tbg: 38, fl: null, inj: 39 }
+        }
+    },
 
     parse(workbook) {
         const result = {
@@ -27,6 +35,10 @@ export const Unit130Parser = {
             const wellTestData = this.parseWellTestSheet(workbook.Sheets['Well Test']);
             result.wells = wellTestData.wells;
             result.rawRowCount = wellTestData.rowCount;
+        }
+
+        if (result.wells.length > 0) {
+            this.applyPressureReadings(workbook, result.wells);
         }
 
         return result;
@@ -75,6 +87,52 @@ export const Unit130Parser = {
         });
 
         return { wells, rowCount };
+    },
+
+    applyPressureReadings(workbook, wells) {
+        const config = this.pressureConfig;
+        if (!config) return;
+        const sheet = workbook.Sheets[config.sheet];
+        if (!sheet) return;
+
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        if (!data || data.length === 0) return;
+
+        const readingsByWell = {};
+        wells.forEach(well => {
+            readingsByWell[well.id] = [];
+        });
+
+        for (let i = config.headerRowIndex + 1; i < data.length; i++) {
+            const row = data[i];
+            if (!row) continue;
+            const dateStr = this.parseDate(row[config.dateCol]);
+            if (!dateStr) continue;
+
+            Object.entries(config.wells).forEach(([wellId, cols]) => {
+                if (!readingsByWell[wellId]) return;
+                const casingPsi = this.parseNumber(row[cols.csg]);
+                const tubingPsi = this.parseNumber(row[cols.tbg]);
+                const flowlinePsi = cols.fl === null ? null : this.parseNumber(row[cols.fl]);
+                const injVol = this.parseNumber(row[cols.inj]);
+
+                if (casingPsi !== null || tubingPsi !== null || flowlinePsi !== null || injVol !== null) {
+                    readingsByWell[wellId].push({
+                        date: dateStr,
+                        casingPsi,
+                        tubingPsi,
+                        flowlinePsi,
+                        injVol
+                    });
+                }
+            });
+        }
+
+        wells.forEach(well => {
+            const readings = readingsByWell[well.id] || [];
+            readings.sort((a, b) => new Date(b.date) - new Date(a.date));
+            well.pressureReadings = readings.slice(0, 60);
+        });
     },
 
     parseDate(val) {
