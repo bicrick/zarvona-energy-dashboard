@@ -275,8 +275,32 @@ function renderPressureCharts(readings) {
     if (hasPsiData) {
         const psiSection = document.createElement('div');
         psiSection.className = 'chart-section';
+        
+        let filterHtml = '';
+        const availableFilters = [];
+        if (hasCasingPsi) availableFilters.push({ id: 'casing', label: 'Casing PSI', color: '#f97316' });
+        if (hasTubingPsi) availableFilters.push({ id: 'tubing', label: 'Tubing PSI', color: '#3b82f6' });
+        if (hasFlowlinePsi) availableFilters.push({ id: 'flowline', label: 'Flowline PSI', color: '#8b5cf6' });
+        
+        if (availableFilters.length > 1) {
+            filterHtml = `
+                <div class="pressure-chart-filters">
+                    ${availableFilters.map(filter => `
+                        <label class="pressure-filter-option">
+                            <input type="checkbox" class="pressure-filter-checkbox" data-psi-type="${filter.id}" checked>
+                            <span class="filter-color-indicator" style="background-color: ${filter.color};"></span>
+                            <span>${filter.label}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
         psiSection.innerHTML = `
-            <div class="chart-label">Pressure Readings (PSI)</div>
+            <div class="chart-header-with-filters">
+                <div class="chart-label">Pressure Readings (PSI)</div>
+                ${filterHtml}
+            </div>
             <div class="canvas-wrapper">
                 <canvas id="chart-pressure-psi"></canvas>
             </div>
@@ -357,9 +381,7 @@ function renderPressureCharts(readings) {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: true,
-                        position: 'top',
-                        labels: { color: '#9ea3ab' }
+                        display: false
                     },
                     tooltip: {
                         backgroundColor: '#282c33',
@@ -397,6 +419,26 @@ function renderPressureCharts(readings) {
                     }
                 }
             }
+        });
+
+        // Add event listeners for filter checkboxes
+        const filterCheckboxes = psiSection.querySelectorAll('.pressure-filter-checkbox');
+        filterCheckboxes.forEach((checkbox, index) => {
+            checkbox.addEventListener('change', (e) => {
+                const datasetIndex = datasets.findIndex(ds => {
+                    const psiType = e.target.dataset.psiType;
+                    if (psiType === 'casing') return ds.label === 'Casing PSI';
+                    if (psiType === 'tubing') return ds.label === 'Tubing PSI';
+                    if (psiType === 'flowline') return ds.label === 'Flowline PSI';
+                    return false;
+                });
+                
+                if (datasetIndex !== -1) {
+                    const meta = appState.pressureCharts.psi.getDatasetMeta(datasetIndex);
+                    meta.hidden = !e.target.checked;
+                    appState.pressureCharts.psi.update();
+                }
+            });
         });
     }
 

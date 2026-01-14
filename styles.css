@@ -1114,6 +1114,12 @@ body {
         height: 350px;
     }
     
+    .chart-header-with-filters {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
     .chart-explorer {
         max-height: 250px;
     }
@@ -1296,6 +1302,48 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
+}
+
+.chart-header-with-filters {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 16px;
+}
+
+.pressure-chart-filters {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.pressure-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.pressure-filter-option:hover {
+    color: var(--text-primary);
+}
+
+.pressure-filter-checkbox {
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+}
+
+.filter-color-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
 }
 
 .chart-label {
