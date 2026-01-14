@@ -32,5 +32,6 @@ export const appState = {
     oilChartDateRange: { min: null, max: null },
     waterChartDateRange: { min: null, max: null },
     gasChartDateRange: { min: null, max: null },
+    pressureCharts: { psi: null, injVol: null },
     currentEditSection: null
 };

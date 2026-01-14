@@ -88,6 +88,7 @@ export function showWellView(sheetId, wellId) {
     renderFailureHistory(well.failureHistory || []);
     renderActionList('wellActionList', well.actionItems || []);
     renderPressureTable(well.pressureReadings || []);
+    renderPressureCharts(well.pressureReadings || []);
 
     initializeEditHandlers();
 }
@@ -230,4 +231,251 @@ function renderPressureTable(readings) {
             <td>${r.injVol || '-'}</td>
         </tr>
     `).join('');
+}
+
+function renderPressureCharts(readings) {
+    const card = document.getElementById('pressureChartsCard');
+    const wrapper = document.getElementById('pressureChartsWrapper');
+
+    // Destroy existing charts
+    if (appState.pressureCharts.psi) {
+        appState.pressureCharts.psi.destroy();
+        appState.pressureCharts.psi = null;
+    }
+    if (appState.pressureCharts.injVol) {
+        appState.pressureCharts.injVol.destroy();
+        appState.pressureCharts.injVol = null;
+    }
+
+    // Check if we have sufficient data (>20 entries)
+    if (!readings || readings.length <= 20) {
+        card.style.display = 'none';
+        return;
+    }
+
+    // Determine which data types are available
+    const hasCasingPsi = readings.some(r => r.casingPsi !== null && r.casingPsi !== undefined && !isNaN(r.casingPsi));
+    const hasTubingPsi = readings.some(r => r.tubingPsi !== null && r.tubingPsi !== undefined && !isNaN(r.tubingPsi));
+    const hasFlowlinePsi = readings.some(r => r.flowlinePsi !== null && r.flowlinePsi !== undefined && !isNaN(r.flowlinePsi));
+    const hasInjVol = readings.some(r => r.injVol !== null && r.injVol !== undefined && !isNaN(r.injVol));
+
+    const hasPsiData = hasCasingPsi || hasTubingPsi || hasFlowlinePsi;
+
+    // If no data available, hide the card
+    if (!hasPsiData && !hasInjVol) {
+        card.style.display = 'none';
+        return;
+    }
+
+    // Show the card
+    card.style.display = 'block';
+    wrapper.innerHTML = '';
+
+    // Create PSI chart if we have PSI data
+    if (hasPsiData) {
+        const psiSection = document.createElement('div');
+        psiSection.className = 'chart-section';
+        psiSection.innerHTML = `
+            <div class="chart-label">Pressure Readings (PSI)</div>
+            <div class="canvas-wrapper">
+                <canvas id="chart-pressure-psi"></canvas>
+            </div>
+        `;
+        wrapper.appendChild(psiSection);
+
+        const datasets = [];
+
+        if (hasCasingPsi) {
+            const casingData = readings
+                .filter(r => r.date && r.casingPsi !== null && r.casingPsi !== undefined)
+                .map(r => ({
+                    x: new Date(r.date),
+                    y: Number(r.casingPsi)
+                }))
+                .filter(p => !isNaN(p.y))
+                .sort((a, b) => a.x - b.x);
+
+            datasets.push({
+                label: 'Casing PSI',
+                data: casingData,
+                borderColor: '#f97316',
+                backgroundColor: '#f97316',
+                pointRadius: 2,
+                pointHoverRadius: 5,
+                borderWidth: 2
+            });
+        }
+
+        if (hasTubingPsi) {
+            const tubingData = readings
+                .filter(r => r.date && r.tubingPsi !== null && r.tubingPsi !== undefined)
+                .map(r => ({
+                    x: new Date(r.date),
+                    y: Number(r.tubingPsi)
+                }))
+                .filter(p => !isNaN(p.y))
+                .sort((a, b) => a.x - b.x);
+
+            datasets.push({
+                label: 'Tubing PSI',
+                data: tubingData,
+                borderColor: '#3b82f6',
+                backgroundColor: '#3b82f6',
+                pointRadius: 2,
+                pointHoverRadius: 5,
+                borderWidth: 2
+            });
+        }
+
+        if (hasFlowlinePsi) {
+            const flowlineData = readings
+                .filter(r => r.date && r.flowlinePsi !== null && r.flowlinePsi !== undefined)
+                .map(r => ({
+                    x: new Date(r.date),
+                    y: Number(r.flowlinePsi)
+                }))
+                .filter(p => !isNaN(p.y))
+                .sort((a, b) => a.x - b.x);
+
+            datasets.push({
+                label: 'Flowline PSI',
+                data: flowlineData,
+                borderColor: '#8b5cf6',
+                backgroundColor: '#8b5cf6',
+                pointRadius: 2,
+                pointHoverRadius: 5,
+                borderWidth: 2
+            });
+        }
+
+        const psiCtx = document.getElementById('chart-pressure-psi').getContext('2d');
+        appState.pressureCharts.psi = new Chart(psiCtx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { color: '#9ea3ab' }
+                    },
+                    tooltip: {
+                        backgroundColor: '#282c33',
+                        titleColor: '#e8e9eb',
+                        bodyColor: '#e8e9eb',
+                        callbacks: {
+                            title: (context) => {
+                                const date = new Date(context[0].parsed.x);
+                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            },
+                            label: (context) => `${context.dataset.label}: ${context.parsed.y} PSI`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            displayFormats: {
+                                day: 'MMM-yy',
+                                week: 'MMM-yy',
+                                month: 'MMM-yy',
+                                quarter: 'MMM-yy',
+                                year: 'yyyy'
+                            }
+                        },
+                        grid: { color: '#3a3f47' },
+                        ticks: { color: '#9ea3ab', maxTicksLimit: 8 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'PSI', color: '#9ea3ab' },
+                        grid: { color: '#3a3f47' },
+                        ticks: { color: '#9ea3ab' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Create Injection Volume chart if we have that data
+    if (hasInjVol) {
+        const injVolSection = document.createElement('div');
+        injVolSection.className = 'chart-section';
+        injVolSection.innerHTML = `
+            <div class="chart-label">Injection Volume</div>
+            <div class="canvas-wrapper">
+                <canvas id="chart-pressure-injvol"></canvas>
+            </div>
+        `;
+        wrapper.appendChild(injVolSection);
+
+        const injVolData = readings
+            .filter(r => r.date && r.injVol !== null && r.injVol !== undefined)
+            .map(r => ({
+                x: new Date(r.date),
+                y: Number(r.injVol)
+            }))
+            .filter(p => !isNaN(p.y))
+            .sort((a, b) => a.x - b.x);
+
+        const injVolCtx = document.getElementById('chart-pressure-injvol').getContext('2d');
+        appState.pressureCharts.injVol = new Chart(injVolCtx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Injection Volume',
+                    data: injVolData,
+                    borderColor: '#22c55e',
+                    backgroundColor: '#22c55e',
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#282c33',
+                        titleColor: '#e8e9eb',
+                        bodyColor: '#e8e9eb',
+                        callbacks: {
+                            title: (context) => {
+                                const date = new Date(context[0].parsed.x);
+                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            },
+                            label: (context) => `Injection Volume: ${context.parsed.y}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            displayFormats: {
+                                day: 'MMM-yy',
+                                week: 'MMM-yy',
+                                month: 'MMM-yy',
+                                quarter: 'MMM-yy',
+                                year: 'yyyy'
+                            }
+                        },
+                        grid: { color: '#3a3f47' },
+                        ticks: { color: '#9ea3ab', maxTicksLimit: 8 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Volume', color: '#9ea3ab' },
+                        grid: { color: '#3a3f47' },
+                        ticks: { color: '#9ea3ab' }
+                    }
+                }
+            }
+        });
+    }
 }

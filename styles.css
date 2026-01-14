@@ -755,6 +755,10 @@ body {
     grid-column: span 3;
 }
 
+.well-grid .pressure-charts-card {
+    grid-column: span 3;
+}
+
 .battery-grid {
     grid-template-columns: repeat(3, 1fr);
 }
@@ -1258,6 +1262,42 @@ body {
     height: 100%;
 }
 
+.pressure-charts-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.pressure-charts-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 24px;
+    overflow: hidden;
+}
+
+.pressure-charts-wrapper .chart-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 300px;
+    overflow: hidden;
+}
+
+.pressure-charts-wrapper .canvas-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+.pressure-charts-wrapper .canvas-wrapper canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
 .chart-label {
     font-size: 0.6875rem;
     color: var(--text-muted);
@@ -1455,6 +1495,10 @@ tbody tr:nth-child(even) {
         grid-column: span 2;
     }
     
+    .well-grid .pressure-charts-card {
+        grid-column: span 2;
+    }
+    
     .battery-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1476,6 +1520,7 @@ tbody tr:nth-child(even) {
     
     .well-grid .production-card,
     .well-grid .failure-card,
+    .well-grid .pressure-charts-card,
     .battery-grid .production-card,
     .battery-grid .run-tickets-card {
         grid-column: span 1;
