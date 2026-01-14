@@ -1,3 +1,4 @@
+import '../styles.css';
 import { initializeTheme, initializeThemeToggle } from './theme.js';
 import { loadDataFromStorage } from './storage.js';
 import { initializeNavigation, initializeLogoHandler, initializeHamburgerToggle, refreshNavigation } from './navigation.js';
