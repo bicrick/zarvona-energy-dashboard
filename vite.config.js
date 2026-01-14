@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig(({ command }) => ({
-    base: command === 'build' ? '/oil-well-app/' : '/',
+    base: command === 'build' ? '/zarvona-energy-dashboard/' : '/',
     build: {
         outDir: 'docs'
     },
