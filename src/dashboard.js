@@ -2,7 +2,6 @@ import { appState } from './config.js';
 import { formatDate } from './utils.js';
 import { getAggregateStats, getTopProducingWells, getRecentWellTests, getAllActionItems } from './data-aggregation.js';
 import { showWellView } from './views.js';
-import { processBulkUploadFromDashboard } from './upload.js';
 import { clearFirestoreData } from './firestore-storage.js';
 
 const LOADING_PLACEHOLDER = '<div class="loading-placeholder"><div class="loading-spinner-small"></div><span>Loading...</span></div>';
@@ -148,20 +147,34 @@ function renderDashboardActionItems() {
 
 export function initializeDashboardHandlers() {
     const btnReuploadAll = document.getElementById('btnReuploadAll');
-    const bulkFileInputDashboard = document.getElementById('bulkFileInputDashboard');
     const btnClearCache = document.getElementById('btnClearCache');
+    
+    // Getting Started Modal elements
+    const reuploadModal = document.getElementById('reuploadModal');
+    const btnCloseReuploadModal = document.getElementById('btnCloseReuploadModal');
+    const reuploadModalOverlay = document.getElementById('reuploadModalOverlay');
 
-    if (btnReuploadAll && bulkFileInputDashboard) {
+    if (btnReuploadAll) {
         btnReuploadAll.addEventListener('click', () => {
-            bulkFileInputDashboard.click();
-        });
-
-        bulkFileInputDashboard.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length > 0) {
-                processBulkUploadFromDashboard(files);
+            if (reuploadModal) {
+                reuploadModal.classList.add('visible');
             }
-            bulkFileInputDashboard.value = '';
+        });
+    }
+
+    if (btnCloseReuploadModal) {
+        btnCloseReuploadModal.addEventListener('click', () => {
+            if (reuploadModal) {
+                reuploadModal.classList.remove('visible');
+            }
+        });
+    }
+
+    if (reuploadModalOverlay) {
+        reuploadModalOverlay.addEventListener('click', () => {
+            if (reuploadModal) {
+                reuploadModal.classList.remove('visible');
+            }
         });
     }
 

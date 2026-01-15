@@ -42,5 +42,7 @@ export const appState = {
     metadataCache: {
         wellCounts: {},  // { sheetId: count }
         wellNames: {}    // { sheetId: [{ id, name }] }
-    }
+    },
+    // Dashboard data cache (from optimized queries)
+    dashboardData: null
 };

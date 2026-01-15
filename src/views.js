@@ -4,7 +4,7 @@ import { renderProductionCharts } from './charts/production.js';
 import { initializeEditHandlers } from './edit-modal.js';
 import { renderDashboard } from './dashboard.js';
 import { hasUploadedData } from './data-aggregation.js';
-import { loadWellDetails, loadWellsList } from './firestore-storage.js';
+import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData } from './firestore-storage.js';
 
 // CSV Download utility functions
 function downloadCSV(data, headers, filename) {
@@ -67,17 +67,16 @@ export function showView(viewName) {
     }
 }
 
-export function updateWelcomeStats() {
-    const uploadPrompt = document.getElementById('welcomeUploadPrompt');
+export async function updateWelcomeStats() {
     const dashboard = document.getElementById('operationsDashboard');
 
-    if (hasUploadedData()) {
-        uploadPrompt.style.display = 'none';
+    if (dashboard) {
         dashboard.style.display = 'block';
+        
+        // Refresh dashboard data from loaded wells (catches any manual edits)
+        await refreshDashboardData();
+        
         renderDashboard();
-    } else {
-        uploadPrompt.style.display = 'block';
-        dashboard.style.display = 'none';
     }
 }
 

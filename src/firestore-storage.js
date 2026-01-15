@@ -8,106 +8,20 @@ import {
     deleteDoc,
     query,
     where,
+    orderBy,
     limit,
+    collectionGroup,
     Timestamp
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { appState } from './config.js';
 
-/**
- * Load all gauge sheets data from Firestore
- * @returns {Promise<boolean>} Success status
- */
-export async function loadDataFromFirestore() {
-    try {
-        console.log('Loading data from Firestore...');
-        
-        // Get all gauge sheets
-        const gaugeSheetsColl = collection(db, 'gaugeSheets');
-        const gaugeSheetSnapshot = await getDocs(gaugeSheetsColl);
-        
-        const newAppData = {};
-        
-        // Load each gauge sheet and its nested data
-        for (const sheetDoc of gaugeSheetSnapshot.docs) {
-            const sheetData = sheetDoc.data();
-            const sheetId = sheetDoc.id;
-            
-            // Initialize sheet structure
-            newAppData[sheetId] = {
-                id: sheetData.id,
-                name: sheetData.name,
-                lastUpdated: sheetData.lastUpdated?.toDate?.() || sheetData.lastUpdated,
-                rawRowCount: sheetData.rawRowCount || 0,
-                wells: [],
-                batteryProduction: [],
-                runTickets: []
-            };
-            
-            // Load wells for this sheet
-            const wellsColl = collection(db, `gaugeSheets/${sheetId}/wells`);
-            const wellsSnapshot = await getDocs(wellsColl);
-            
-            for (const wellDoc of wellsSnapshot.docs) {
-                const wellData = wellDoc.data();
-                const wellId = wellDoc.id;
-                
-                // Load production data for this well
-                const productionColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellId}/production`);
-                const productionSnapshot = await getDocs(productionColl);
-                const production = productionSnapshot.docs.map(doc => ({
-                    ...doc.data(),
-                    date: doc.data().date?.toDate?.() || new Date(doc.data().date)
-                }));
-                
-                // Load well tests for this well
-                const wellTestsColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellId}/wellTests`);
-                const wellTestsSnapshot = await getDocs(wellTestsColl);
-                const wellTests = wellTestsSnapshot.docs.map(doc => ({
-                    ...doc.data(),
-                    date: doc.data().date?.toDate?.() || new Date(doc.data().date)
-                }));
-                
-                // Add well with all its data
-                newAppData[sheetId].wells.push({
-                    id: wellData.id,
-                    name: wellData.name,
-                    production: production,
-                    wellTests: wellTests,
-                    pressureReadings: wellData.pressureReadings || [],
-                    chemicalProgram: wellData.chemicalProgram || {},
-                    failureHistory: wellData.failureHistory || [],
-                    actionItems: wellData.actionItems || []
-                });
-            }
-            
-            // Load battery production for this sheet
-            const batteryProdColl = collection(db, `gaugeSheets/${sheetId}/batteryProduction`);
-            const batteryProdSnapshot = await getDocs(batteryProdColl);
-            newAppData[sheetId].batteryProduction = batteryProdSnapshot.docs.map(doc => ({
-                ...doc.data(),
-                date: doc.data().date?.toDate?.() || new Date(doc.data().date)
-            }));
-            
-            // Load run tickets for this sheet
-            const runTicketsColl = collection(db, `gaugeSheets/${sheetId}/runTickets`);
-            const runTicketsSnapshot = await getDocs(runTicketsColl);
-            newAppData[sheetId].runTickets = runTicketsSnapshot.docs.map(doc => doc.data());
-        }
-        
-        // Update app state
-        appState.appData = newAppData;
-        console.log('Data loaded from Firestore successfully');
-        return true;
-    } catch (error) {
-        console.error('Error loading data from Firestore:', error);
-        appState.appData = {};
-        return false;
-    }
-}
+// ============================================================================
+// OPTIMIZED DATA MODEL - SAVE FUNCTIONS
+// ============================================================================
 
 /**
- * Save a gauge sheet's data to Firestore (incremental update)
+ * Save a gauge sheet's data to Firestore with optimized structure
  * @param {string} sheetId - The gauge sheet ID
  * @param {object} sheetData - The sheet data to save
  * @param {boolean} fullReplace - If true, replace all data. If false, only update new/changed data
@@ -115,23 +29,27 @@ export async function loadDataFromFirestore() {
  */
 export async function saveSheetToFirestore(sheetId, sheetData, fullReplace = false) {
     try {
-        console.log(`Saving sheet ${sheetId} to Firestore...`);
+        console.log(`Saving sheet ${sheetId} to Firestore with optimized structure...`);
         
-        const batch = writeBatch(db);
+        // Calculate wellList for fast navigation
+        const wellList = (sheetData.wells || []).map(w => ({
+            id: w.id,
+            name: w.name,
+            status: w.status || 'active'
+        })).filter(w => w.status !== 'inactive');
         
-        // Save gauge sheet document
+        // Save gauge sheet document with wellList
         const sheetRef = doc(db, 'gaugeSheets', sheetId);
-        batch.set(sheetRef, {
+        await setDoc(sheetRef, {
             id: sheetData.id,
             name: sheetData.name,
             lastUpdated: Timestamp.fromDate(new Date(sheetData.lastUpdated)),
-            rawRowCount: sheetData.rawRowCount || 0
+            rawRowCount: sheetData.rawRowCount || 0,
+            wellList: wellList,
+            wellCount: wellList.length
         }, { merge: true });
         
-        // Commit the batch for the main sheet
-        await batch.commit();
-        
-        // Save wells (with their nested collections)
+        // Save wells with optimized fields
         if (sheetData.wells && sheetData.wells.length > 0) {
             for (const well of sheetData.wells) {
                 await saveWellToFirestore(sheetId, well, fullReplace);
@@ -157,7 +75,7 @@ export async function saveSheetToFirestore(sheetId, sheetData, fullReplace = fal
 }
 
 /**
- * Save a well's data to Firestore
+ * Save a well's data to Firestore with optimized denormalized fields
  * @param {string} sheetId - The gauge sheet ID
  * @param {object} wellData - The well data to save
  * @param {boolean} fullReplace - If true, replace all data. If false, only update recent data
@@ -167,10 +85,74 @@ async function saveWellToFirestore(sheetId, wellData, fullReplace = false) {
     try {
         const wellRef = doc(db, `gaugeSheets/${sheetId}/wells`, wellData.id);
         
-        // Save well document (without production and wellTests arrays)
+        // Calculate latest production (most recent date)
+        let latestProduction = null;
+        if (wellData.production && wellData.production.length > 0) {
+            const sortedProduction = [...wellData.production].sort((a, b) => 
+                new Date(b.date) - new Date(a.date)
+            );
+            const latest = sortedProduction[0];
+            latestProduction = {
+                date: Timestamp.fromDate(new Date(latest.date)),
+                oil: latest.oil || 0,
+                water: latest.water || 0,
+                gas: latest.gas || 0
+            };
+        }
+        
+        // Calculate latest test (most recent date)
+        let latestTest = null;
+        if (wellData.wellTests && wellData.wellTests.length > 0) {
+            const sortedTests = [...wellData.wellTests].sort((a, b) => 
+                new Date(b.date) - new Date(a.date)
+            );
+            const latest = sortedTests[0];
+            latestTest = {
+                date: Timestamp.fromDate(new Date(latest.date)),
+                oil: latest.oil || 0,
+                water: latest.water || 0,
+                gas: latest.gas || 0
+            };
+        }
+        
+        // Calculate 30-day average stats
+        let dailyStats = null;
+        if (wellData.production && wellData.production.length > 0) {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const recentProduction = wellData.production.filter(p => 
+                new Date(p.date) >= thirtyDaysAgo
+            );
+            
+            if (recentProduction.length > 0) {
+                const totalOil = recentProduction.reduce((sum, p) => sum + (p.oil || 0), 0);
+                const totalWater = recentProduction.reduce((sum, p) => sum + (p.water || 0), 0);
+                const totalGas = recentProduction.reduce((sum, p) => sum + (p.gas || 0), 0);
+                const days = recentProduction.length;
+                
+                dailyStats = {
+                    avgOil: Math.round(totalOil / days * 100) / 100,
+                    avgWater: Math.round(totalWater / days * 100) / 100,
+                    avgGas: Math.round(totalGas / days * 100) / 100,
+                    days: days
+                };
+            }
+        }
+        
+        // Check if well has action items
+        const hasActionItems = wellData.actionItems && wellData.actionItems.length > 0;
+        
+        // Save well document with optimized fields
         await setDoc(wellRef, {
             id: wellData.id,
             name: wellData.name,
+            sheetId: sheetId,
+            status: wellData.status || 'active',
+            latestProduction: latestProduction,
+            latestTest: latestTest,
+            dailyStats: dailyStats,
+            hasActionItems: hasActionItems,
             pressureReadings: wellData.pressureReadings || [],
             chemicalProgram: wellData.chemicalProgram || {},
             failureHistory: wellData.failureHistory || [],
@@ -196,11 +178,6 @@ async function saveWellToFirestore(sheetId, wellData, fullReplace = false) {
 
 /**
  * Save production data incrementally (only new/recent data)
- * @param {string} sheetId - The gauge sheet ID
- * @param {string} wellId - The well ID
- * @param {array} production - Production data array
- * @param {boolean} fullReplace - If true, save all data
- * @returns {Promise<boolean>} Success status
  */
 async function saveProductionDataIncremental(sheetId, wellId, production, fullReplace) {
     try {
@@ -209,7 +186,7 @@ async function saveProductionDataIncremental(sheetId, wellId, production, fullRe
             const batch = writeBatch(db);
             const productionToSave = production.slice(-500);
             
-            productionToSave.forEach((prod, index) => {
+            productionToSave.forEach((prod) => {
                 const dateKey = new Date(prod.date).toISOString().split('T')[0];
                 const prodRef = doc(db, `gaugeSheets/${sheetId}/wells/${wellId}/production`, dateKey);
                 batch.set(prodRef, {
@@ -266,15 +243,9 @@ async function saveProductionDataIncremental(sheetId, wellId, production, fullRe
 
 /**
  * Save well tests incrementally
- * @param {string} sheetId - The gauge sheet ID
- * @param {string} wellId - The well ID
- * @param {array} wellTests - Well tests array
- * @param {boolean} fullReplace - If true, save all data
- * @returns {Promise<boolean>} Success status
  */
 async function saveWellTestsIncremental(sheetId, wellId, wellTests, fullReplace) {
     try {
-        // Well tests are typically smaller, so we can be less aggressive
         const testsToSave = fullReplace ? wellTests : wellTests.slice(-50);
         
         if (testsToSave.length > 0) {
@@ -303,14 +274,9 @@ async function saveWellTestsIncremental(sheetId, wellId, wellTests, fullReplace)
 
 /**
  * Save battery production data to Firestore
- * @param {string} sheetId - The gauge sheet ID
- * @param {array} batteryProduction - Array of battery production data
- * @param {boolean} fullReplace - If true, save all data
- * @returns {Promise<boolean>} Success status
  */
 async function saveBatteryProductionToFirestore(sheetId, batteryProduction, fullReplace = false) {
     try {
-        // Incremental: only save last 30 days
         let productionToSave;
         if (fullReplace) {
             productionToSave = batteryProduction.slice(-500);
@@ -346,14 +312,9 @@ async function saveBatteryProductionToFirestore(sheetId, batteryProduction, full
 
 /**
  * Save run tickets to Firestore
- * @param {string} sheetId - The gauge sheet ID
- * @param {array} runTickets - Array of run ticket data
- * @param {boolean} fullReplace - If true, save all data
- * @returns {Promise<boolean>} Success status
  */
 async function saveRunTicketsToFirestore(sheetId, runTickets, fullReplace = false) {
     try {
-        // Incremental: only save last 30 days
         let ticketsToSave;
         if (fullReplace) {
             ticketsToSave = runTickets;
@@ -371,15 +332,12 @@ async function saveRunTicketsToFirestore(sheetId, runTickets, fullReplace = fals
             const batch = writeBatch(db);
             
             ticketsToSave.forEach((ticket, index) => {
-                // Use date + index as ID for uniqueness
                 const dateKey = ticket.date ? new Date(ticket.date).toISOString().split('T')[0] : 'unknown';
                 const ticketRef = doc(db, `gaugeSheets/${sheetId}/runTickets`, `${dateKey}_${index}`);
                 
-                // Handle date conversion safely
                 let dateValue = null;
                 if (ticket.date) {
                     const parsedDate = new Date(ticket.date);
-                    // Check if date is valid
                     if (!isNaN(parsedDate.getTime())) {
                         dateValue = Timestamp.fromDate(parsedDate);
                     }
@@ -401,307 +359,197 @@ async function saveRunTicketsToFirestore(sheetId, runTickets, fullReplace = fals
     }
 }
 
-/**
- * Update well data in Firestore (for edits)
- * @param {string} sheetId - The gauge sheet ID
- * @param {string} wellId - The well ID
- * @param {object} updates - Object with fields to update
- * @returns {Promise<boolean>} Success status
- */
-export async function updateWellInFirestore(sheetId, wellId, updates) {
-    try {
-        const wellRef = doc(db, `gaugeSheets/${sheetId}/wells`, wellId);
-        await setDoc(wellRef, updates, { merge: true });
-        
-        // Update local state
-        const well = appState.appData[sheetId]?.wells.find(w => w.id === wellId);
-        if (well) {
-            Object.assign(well, updates);
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('Error updating well:', error);
-        return false;
-    }
-}
-
-/**
- * Clear all data from Firestore (for cache clearing)
- * @returns {Promise<boolean>} Success status
- */
-export async function clearFirestoreData() {
-    try {
-        console.log('Clearing Firestore data...');
-        
-        const gaugeSheetsColl = collection(db, 'gaugeSheets');
-        const gaugeSheetSnapshot = await getDocs(gaugeSheetsColl);
-        
-        // Delete each gauge sheet and its subcollections
-        for (const sheetDoc of gaugeSheetSnapshot.docs) {
-            await deleteSheetFromFirestore(sheetDoc.id);
-        }
-        
-        // Clear local state
-        appState.appData = {};
-        
-        console.log('Firestore data cleared successfully');
-        return true;
-    } catch (error) {
-        console.error('Error clearing Firestore data:', error);
-        return false;
-    }
-}
-
-/**
- * Delete a sheet and all its subcollections from Firestore
- * @param {string} sheetId - The gauge sheet ID to delete
- * @returns {Promise<boolean>} Success status
- */
-async function deleteSheetFromFirestore(sheetId) {
-    try {
-        // Delete wells and their subcollections
-        const wellsColl = collection(db, `gaugeSheets/${sheetId}/wells`);
-        const wellsSnapshot = await getDocs(wellsColl);
-        
-        for (const wellDoc of wellsSnapshot.docs) {
-            // Delete production subcollection
-            const productionColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellDoc.id}/production`);
-            const productionSnapshot = await getDocs(productionColl);
-            for (const prodDoc of productionSnapshot.docs) {
-                await deleteDoc(prodDoc.ref);
-            }
-            
-            // Delete well tests subcollection
-            const wellTestsColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellDoc.id}/wellTests`);
-            const wellTestsSnapshot = await getDocs(wellTestsColl);
-            for (const testDoc of wellTestsSnapshot.docs) {
-                await deleteDoc(testDoc.ref);
-            }
-            
-            // Delete well document
-            await deleteDoc(wellDoc.ref);
-        }
-        
-        // Delete battery production
-        const batteryProdColl = collection(db, `gaugeSheets/${sheetId}/batteryProduction`);
-        const batteryProdSnapshot = await getDocs(batteryProdColl);
-        for (const prodDoc of batteryProdSnapshot.docs) {
-            await deleteDoc(prodDoc.ref);
-        }
-        
-        // Delete run tickets
-        const runTicketsColl = collection(db, `gaugeSheets/${sheetId}/runTickets`);
-        const runTicketsSnapshot = await getDocs(runTicketsColl);
-        for (const ticketDoc of runTicketsSnapshot.docs) {
-            await deleteDoc(ticketDoc.ref);
-        }
-        
-        // Delete sheet document
-        const sheetRef = doc(db, 'gaugeSheets', sheetId);
-        await deleteDoc(sheetRef);
-        
-        return true;
-    } catch (error) {
-        console.error(`Error deleting sheet ${sheetId}:`, error);
-        return false;
-    }
-}
-
 // ============================================================================
-// PROGRESSIVE LOADING FUNCTIONS
+// OPTIMIZED DATA MODEL - LOAD FUNCTIONS
 // ============================================================================
 
 /**
- * Load only gauge sheet metadata (no wells, no production data)
- * This is the minimal data needed to show the navigation
+ * Load ALL data at startup - SIMPLE AND FAST
+ * Loads all battery metadata and all well summary data in one go
  * @returns {Promise<boolean>} Success status
  */
-export async function loadGaugeSheetMetadata() {
+export async function loadNavigationData() {
     try {
-        console.log('Loading gauge sheet metadata...');
+        console.log('Loading all data...');
+        const startTime = performance.now();
         
         const gaugeSheetsColl = collection(db, 'gaugeSheets');
         const gaugeSheetSnapshot = await getDocs(gaugeSheetsColl);
         
         const newAppData = {};
+        let totalWells = 0;
         
+        // Load each battery and ALL its wells
         for (const sheetDoc of gaugeSheetSnapshot.docs) {
             const sheetData = sheetDoc.data();
             const sheetId = sheetDoc.id;
             
-            // Initialize sheet structure with minimal data
             newAppData[sheetId] = {
                 id: sheetData.id,
                 name: sheetData.name,
                 lastUpdated: sheetData.lastUpdated?.toDate?.() || sheetData.lastUpdated,
                 rawRowCount: sheetData.rawRowCount || 0,
+                wellList: sheetData.wellList || [],
+                wellCount: sheetData.wellCount || 0,
                 wells: [],
                 batteryProduction: [],
                 runTickets: [],
                 _metadataLoaded: true,
-                _wellsLoaded: false,
-                _aggregateLoaded: false
+                _wellsLoaded: true
             };
+            
+            // Load ALL wells for this battery
+            const wellsColl = collection(db, `gaugeSheets/${sheetId}/wells`);
+            const wellsSnapshot = await getDocs(wellsColl);
+            
+            wellsSnapshot.docs.forEach(wellDoc => {
+                const wellData = wellDoc.data();
+                newAppData[sheetId].wells.push({
+                    id: wellData.id,
+                    name: wellData.name,
+                    sheetId: wellData.sheetId,
+                    status: wellData.status || 'active',
+                    latestProduction: wellData.latestProduction,
+                    latestTest: wellData.latestTest,
+                    dailyStats: wellData.dailyStats,
+                    hasActionItems: wellData.hasActionItems || false,
+                    pressureReadings: wellData.pressureReadings || [],
+                    chemicalProgram: wellData.chemicalProgram || {},
+                    failureHistory: wellData.failureHistory || [],
+                    actionItems: wellData.actionItems || [],
+                    production: [],  // Will lazy-load when viewing well
+                    wellTests: [],   // Will lazy-load when viewing well
+                    _detailsLoaded: false
+                });
+                totalWells++;
+            });
         }
         
         // Update app state
         appState.appData = newAppData;
         appState.loadedSheets = Object.keys(newAppData);
         
-        console.log(`Loaded metadata for ${Object.keys(newAppData).length} gauge sheets`);
+        // Populate metadata cache
+        for (const sheetId in newAppData) {
+            appState.metadataCache.wellCounts[sheetId] = newAppData[sheetId].wells.length;
+            appState.metadataCache.wellNames[sheetId] = newAppData[sheetId].wells.map(w => ({
+                id: w.id,
+                name: w.name
+            }));
+        }
+        
+        const endTime = performance.now();
+        console.log(`✓ Loaded ${Object.keys(newAppData).length} batteries, ${totalWells} wells in ${Math.round(endTime - startTime)}ms`);
         return true;
     } catch (error) {
-        console.error('Error loading gauge sheet metadata:', error);
+        console.error('Error loading data:', error);
         appState.appData = {};
         return false;
     }
 }
 
 /**
- * Load recent summary data for the dashboard (last 30 days)
- * This includes recent production data and well tests for dashboard stats
+ * Prepare dashboard data from already-loaded wells (NO QUERIES NEEDED)
  * @returns {Promise<boolean>} Success status
  */
-export async function loadDashboardSummary() {
+export async function loadDashboardData() {
     try {
-        console.log('Loading dashboard summary data...');
+        console.log('Preparing dashboard data from loaded wells...');
         
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const thirtyDaysAgoTimestamp = Timestamp.fromDate(thirtyDaysAgo);
+        // Everything is already loaded! Just organize it for the dashboard
+        const allWells = [];
         
-        // Load recent data for each gauge sheet
-        for (const sheetId in appState.appData) {
-            const sheetData = appState.appData[sheetId];
-            
-            // Load well names only (for dashboard top producers)
-            const wellsColl = collection(db, `gaugeSheets/${sheetId}/wells`);
-            const wellsSnapshot = await getDocs(wellsColl);
-            
-            for (const wellDoc of wellsSnapshot.docs) {
-                const wellData = wellDoc.data();
-                const wellId = wellDoc.id;
-                
-                // Load only recent production data (last 30 days)
-                const productionColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellId}/production`);
-                const recentProductionQuery = query(
-                    productionColl,
-                    where('date', '>=', thirtyDaysAgoTimestamp)
-                );
-                const productionSnapshot = await getDocs(recentProductionQuery);
-                const production = productionSnapshot.docs.map(doc => ({
-                    ...doc.data(),
-                    date: doc.data().date?.toDate?.() || new Date(doc.data().date)
-                }));
-                
-                // Load only recent well tests (last 30 days)
-                const wellTestsColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellId}/wellTests`);
-                const recentTestsQuery = query(
-                    wellTestsColl,
-                    where('date', '>=', thirtyDaysAgoTimestamp)
-                );
-                const wellTestsSnapshot = await getDocs(recentTestsQuery);
-                const wellTests = wellTestsSnapshot.docs.map(doc => ({
-                    ...doc.data(),
-                    date: doc.data().date?.toDate?.() || new Date(doc.data().date)
-                }));
-                
-                // Add well with minimal data
-                sheetData.wells.push({
-                    id: wellData.id,
-                    name: wellData.name,
-                    production: production,
-                    wellTests: wellTests,
-                    pressureReadings: [],
-                    chemicalProgram: {},
-                    failureHistory: [],
-                    actionItems: [],
-                    _summaryOnly: true // Flag to indicate this is summary data only
-                });
+        Object.keys(appState.appData).forEach(sheetId => {
+            const sheet = appState.appData[sheetId];
+            if (sheet && sheet.wells) {
+                allWells.push(...sheet.wells.map(w => ({...w, sheetId})));
             }
-            
-            sheetData._wellsLoaded = true;
-            
-            // Populate metadata cache for fast navigation updates
-            appState.metadataCache.wellCounts[sheetId] = sheetData.wells.length;
-            appState.metadataCache.wellNames[sheetId] = sheetData.wells.map(w => ({
-                id: w.id,
-                name: w.name
-            }));
-        }
+        });
         
-        console.log('Dashboard summary data loaded');
+        // Sort for top producers (in JavaScript - it's instant)
+        const topProducers = allWells
+            .filter(w => w.status !== 'inactive' && w.latestProduction)
+            .sort((a, b) => (b.latestProduction?.oil || 0) - (a.latestProduction?.oil || 0))
+            .slice(0, 10);
+        
+        // Sort for recent tests
+        const recentTests = allWells
+            .filter(w => w.status !== 'inactive' && w.latestTest)
+            .sort((a, b) => {
+                const dateA = a.latestTest?.date?.toDate?.() || a.latestTest?.date || 0;
+                const dateB = b.latestTest?.date?.toDate?.() || b.latestTest?.date || 0;
+                return dateB - dateA;
+            })
+            .slice(0, 10);
+        
+        // Filter for action items
+        const actionItems = allWells.filter(w => w.hasActionItems);
+        
+        appState.dashboardData = {
+            topProducers,
+            recentTests,
+            actionItems
+        };
+        
+        console.log(`✓ Dashboard prepared: ${topProducers.length} top producers, ${recentTests.length} recent tests, ${actionItems.length} action items`);
         return true;
     } catch (error) {
-        console.error('Error loading dashboard summary:', error);
+        console.error('Error preparing dashboard data:', error);
         return false;
     }
 }
 
 /**
- * Load the full list of wells for a specific gauge sheet
- * This loads well names and IDs but not their full production history
+ * Get metric-specific data (Oil, Water, or Gas leaderboard) - INSTANT
+ * @param {string} metric - 'oil', 'water', or 'gas'
+ * @returns {Promise<Array>} Array of well data sorted by metric
+ */
+export async function loadMetricData(metric) {
+    try {
+        console.log(`Preparing ${metric} leaderboard...`);
+        
+        // Everything is already loaded! Just sort in JavaScript
+        const allWells = [];
+        
+        Object.keys(appState.appData).forEach(sheetId => {
+            const sheet = appState.appData[sheetId];
+            if (sheet && sheet.wells) {
+                allWells.push(...sheet.wells.map(w => ({...w, sheetId})));
+            }
+        });
+        
+        const metricData = allWells
+            .filter(w => w.status !== 'inactive' && w.latestProduction)
+            .sort((a, b) => (b.latestProduction?.[metric] || 0) - (a.latestProduction?.[metric] || 0))
+            .slice(0, 50);
+        
+        console.log(`✓ ${metric} leaderboard prepared: ${metricData.length} wells`);
+        return metricData;
+    } catch (error) {
+        console.error(`Error preparing ${metric} data:`, error);
+        return [];
+    }
+}
+
+/**
+ * Load wells list for a specific gauge sheet - ALREADY LOADED
  * @param {string} sheetId - The gauge sheet ID
  * @returns {Promise<boolean>} Success status
  */
 export async function loadWellsList(sheetId) {
-    try {
-        console.log(`Loading wells list for ${sheetId}...`);
-        
-        const sheetData = appState.appData[sheetId];
-        if (!sheetData) {
-            console.error(`Sheet ${sheetId} not found in appData`);
-            return false;
-        }
-        
-        // If wells are already loaded, skip
-        if (sheetData._wellsLoaded) {
-            console.log(`Wells already loaded for ${sheetId}`);
-            return true;
-        }
-        
-        const wellsColl = collection(db, `gaugeSheets/${sheetId}/wells`);
-        const wellsSnapshot = await getDocs(wellsColl);
-        
-        sheetData.wells = [];
-        
-        for (const wellDoc of wellsSnapshot.docs) {
-            const wellData = wellDoc.data();
-            
-            // Add well with minimal data (no production history yet)
-            sheetData.wells.push({
-                id: wellData.id,
-                name: wellData.name,
-                production: [],
-                wellTests: [],
-                pressureReadings: wellData.pressureReadings || [],
-                chemicalProgram: wellData.chemicalProgram || {},
-                failureHistory: wellData.failureHistory || [],
-                actionItems: wellData.actionItems || [],
-                _detailsLoaded: false
-            });
-        }
-        
-        sheetData._wellsLoaded = true;
-        
-        // Populate metadata cache for fast navigation updates
-        appState.metadataCache.wellCounts[sheetId] = sheetData.wells.length;
-        appState.metadataCache.wellNames[sheetId] = sheetData.wells.map(w => ({
-            id: w.id,
-            name: w.name
-        }));
-        
-        console.log(`Loaded ${sheetData.wells.length} wells for ${sheetId}`);
-        return true;
-    } catch (error) {
-        console.error(`Error loading wells list for ${sheetId}:`, error);
+    // Wells are already loaded at startup - just return success
+    const sheetData = appState.appData[sheetId];
+    if (!sheetData) {
+        console.error(`Sheet ${sheetId} not found in appData`);
         return false;
     }
+    
+    console.log(`✓ Wells already loaded for ${sheetId}: ${sheetData.wells.length} wells`);
+    return true;
 }
 
 /**
- * Load full details for a specific well (all production data, tests, etc.)
+ * Load full details for a specific well - OPTIMIZED
  * @param {string} sheetId - The gauge sheet ID
  * @param {string} wellId - The well ID
  * @returns {Promise<boolean>} Success status
@@ -774,21 +622,11 @@ export async function loadWellDetails(sheetId, wellId) {
             well.chemicalProgram = wellData.chemicalProgram || {};
             well.failureHistory = wellData.failureHistory || [];
             well.actionItems = wellData.actionItems || [];
+            well.status = wellData.status || 'active';
         }
         
         well._detailsLoaded = true;
         well._summaryOnly = false;
-        
-        // Mark this well as loaded in state
-        if (!appState.loadedWells) {
-            appState.loadedWells = {};
-        }
-        if (!appState.loadedWells[sheetId]) {
-            appState.loadedWells[sheetId] = [];
-        }
-        if (!appState.loadedWells[sheetId].includes(wellId)) {
-            appState.loadedWells[sheetId].push(wellId);
-        }
         
         console.log(`Loaded full details for well ${wellId}`);
         return true;
@@ -838,3 +676,188 @@ export async function loadSheetAggregateData(sheetId) {
     }
 }
 
+/**
+ * Load gauge sheet metadata only (for backward compatibility)
+ */
+export async function loadGaugeSheetMetadata() {
+    return await loadNavigationData();
+}
+
+/**
+ * Load dashboard summary (for backward compatibility)
+ */
+export async function loadDashboardSummary() {
+    return await loadDashboardData();
+}
+
+/**
+ * Fetch a single sheet's data from Firestore (for merge during upload)
+ * @param {string} sheetId - The gauge sheet ID
+ * @returns {Promise<object|null>} Sheet data or null if not found
+ */
+export async function fetchSheetFromFirestore(sheetId) {
+    try {
+        console.log(`Fetching existing data for ${sheetId} from Firestore...`);
+        
+        // Get sheet document
+        const sheetRef = doc(db, 'gaugeSheets', sheetId);
+        const sheetDoc = await getDoc(sheetRef);
+        
+        if (!sheetDoc.exists()) {
+            console.log(`No existing data found for ${sheetId}`);
+            return null;
+        }
+        
+        const sheetData = sheetDoc.data();
+        
+        // Load all wells for this sheet
+        const wellsColl = collection(db, `gaugeSheets/${sheetId}/wells`);
+        const wellsSnapshot = await getDocs(wellsColl);
+        
+        const wells = wellsSnapshot.docs.map(wellDoc => {
+            const wellData = wellDoc.data();
+            return {
+                id: wellData.id,
+                name: wellData.name,
+                status: wellData.status || 'active',
+                pressureReadings: wellData.pressureReadings || [],
+                chemicalProgram: wellData.chemicalProgram || {},
+                failureHistory: wellData.failureHistory || [],
+                actionItems: wellData.actionItems || [],
+                production: [],  // Don't load production history for merge
+                wellTests: []    // Don't load well tests for merge
+            };
+        });
+        
+        console.log(`✓ Fetched ${wells.length} wells with manual edits from Firestore`);
+        
+        return {
+            id: sheetData.id,
+            name: sheetData.name,
+            lastUpdated: sheetData.lastUpdated?.toDate?.() || sheetData.lastUpdated,
+            rawRowCount: sheetData.rawRowCount || 0,
+            wells: wells,
+            batteryProduction: [],
+            runTickets: []
+        };
+    } catch (error) {
+        console.error(`Error fetching sheet ${sheetId} from Firestore:`, error);
+        return null;
+    }
+}
+
+/**
+ * Update well data in Firestore (for manual edits)
+ * Handles updates to actionItems, chemicalProgram, failureHistory, pressureReadings
+ */
+export async function updateWellInFirestore(sheetId, wellId, updates) {
+    try {
+        // If actionItems are being updated, recalculate hasActionItems flag
+        if (updates.actionItems !== undefined) {
+            updates.hasActionItems = updates.actionItems && updates.actionItems.length > 0;
+        }
+        
+        const wellRef = doc(db, `gaugeSheets/${sheetId}/wells`, wellId);
+        await setDoc(wellRef, updates, { merge: true });
+        
+        // Update local state immediately
+        const well = appState.appData[sheetId]?.wells.find(w => w.id === wellId);
+        if (well) {
+            Object.assign(well, updates);
+        }
+        
+        console.log(`✓ Manual edit saved for well ${wellId}`);
+        return true;
+    } catch (error) {
+        console.error('Error updating well:', error);
+        return false;
+    }
+}
+
+/**
+ * Clear all data from Firestore (for cache clearing)
+ */
+export async function clearFirestoreData() {
+    try {
+        console.log('Clearing Firestore data...');
+        
+        const gaugeSheetsColl = collection(db, 'gaugeSheets');
+        const gaugeSheetSnapshot = await getDocs(gaugeSheetsColl);
+        
+        // Delete each gauge sheet and its subcollections
+        for (const sheetDoc of gaugeSheetSnapshot.docs) {
+            await deleteSheetFromFirestore(sheetDoc.id);
+        }
+        
+        // Clear local state
+        appState.appData = {};
+        appState.dashboardData = null;
+        
+        console.log('Firestore data cleared successfully');
+        return true;
+    } catch (error) {
+        console.error('Error clearing Firestore data:', error);
+        return false;
+    }
+}
+
+/**
+ * Delete a sheet and all its subcollections from Firestore
+ */
+async function deleteSheetFromFirestore(sheetId) {
+    try {
+        // Delete wells and their subcollections
+        const wellsColl = collection(db, `gaugeSheets/${sheetId}/wells`);
+        const wellsSnapshot = await getDocs(wellsColl);
+        
+        for (const wellDoc of wellsSnapshot.docs) {
+            // Delete production subcollection
+            const productionColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellDoc.id}/production`);
+            const productionSnapshot = await getDocs(productionColl);
+            for (const prodDoc of productionSnapshot.docs) {
+                await deleteDoc(prodDoc.ref);
+            }
+            
+            // Delete well tests subcollection
+            const wellTestsColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellDoc.id}/wellTests`);
+            const wellTestsSnapshot = await getDocs(wellTestsColl);
+            for (const testDoc of wellTestsSnapshot.docs) {
+                await deleteDoc(testDoc.ref);
+            }
+            
+            // Delete well document
+            await deleteDoc(wellDoc.ref);
+        }
+        
+        // Delete battery production
+        const batteryProdColl = collection(db, `gaugeSheets/${sheetId}/batteryProduction`);
+        const batteryProdSnapshot = await getDocs(batteryProdColl);
+        for (const prodDoc of batteryProdSnapshot.docs) {
+            await deleteDoc(prodDoc.ref);
+        }
+        
+        // Delete run tickets
+        const runTicketsColl = collection(db, `gaugeSheets/${sheetId}/runTickets`);
+        const runTicketsSnapshot = await getDocs(runTicketsColl);
+        for (const ticketDoc of runTicketsSnapshot.docs) {
+            await deleteDoc(ticketDoc.ref);
+        }
+        
+        // Delete sheet document
+        const sheetRef = doc(db, 'gaugeSheets', sheetId);
+        await deleteDoc(sheetRef);
+        
+        return true;
+    } catch (error) {
+        console.error(`Error deleting sheet ${sheetId}:`, error);
+        return false;
+    }
+}
+
+// Legacy function for backward compatibility
+export async function loadDataFromFirestore() {
+    console.warn('loadDataFromFirestore is deprecated. Use loadNavigationData + loadDashboardData instead.');
+    await loadNavigationData();
+    await loadDashboardData();
+    return true;
+}

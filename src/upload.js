@@ -1,5 +1,5 @@
 import { GAUGE_SHEETS, appState } from './config.js';
-import { saveSheetToFirestore } from './firestore-storage.js';
+import { saveSheetToFirestore, fetchSheetFromFirestore } from './firestore-storage.js';
 import { refreshNavigation } from './navigation.js';
 import { showGaugeSheetView } from './views.js';
 import { PARSERS } from './parsers/index.js';
@@ -81,14 +81,24 @@ async function processUploadedFile(file) {
         progressText.textContent = 'Extracting data...';
 
         const data = parser.parse(workbook);
+        progressFill.style.width = '70%';
+        progressText.textContent = 'Checking for manual edits...';
+
+        // Fetch existing data from Firestore to preserve manual edits
+        const existingData = await fetchSheetFromFirestore(appState.currentSheet);
+        
+        progressFill.style.width = '80%';
+        progressText.textContent = 'Merging data...';
+        
+        // Merge new Excel data with existing Firestore data (preserves manual edits)
+        const mergedData = mergeSheetData(existingData, data);
+        appState.appData[appState.currentSheet] = mergedData;
+        
         progressFill.style.width = '90%';
         progressText.textContent = 'Saving...';
-
-        const existingData = appState.appData[appState.currentSheet];
-        appState.appData[appState.currentSheet] = mergeSheetData(existingData, data);
         
-        // Save to Firestore (incremental - only last 30 days)
-        await saveSheetToFirestore(appState.currentSheet, appState.appData[appState.currentSheet], false);
+        // Save to Firestore (full data)
+        await saveSheetToFirestore(appState.currentSheet, mergedData, true);
 
         progressFill.style.width = '100%';
         progressText.textContent = 'Complete!';
@@ -191,8 +201,10 @@ async function processBulkUpload(files) {
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
             const data = parser.parse(workbook);
 
-            const existingData = appState.appData[sheetConfig.id];
-            appState.appData[sheetConfig.id] = mergeSheetData(existingData, data);
+            // Fetch existing data from Firestore to preserve manual edits
+            const existingData = await fetchSheetFromFirestore(sheetConfig.id);
+            const mergedData = mergeSheetData(existingData, data);
+            appState.appData[sheetConfig.id] = mergedData;
 
             resultItems.push({
                 name: sheetConfig.name,
@@ -211,10 +223,9 @@ async function processBulkUpload(files) {
         processed++;
     }
 
-    // Save all sheets to Firestore (incremental update - only last 30 days)
-    // This reduces Firestore writes and avoids quota issues
+    // Save all sheets to Firestore (full data)
     for (const sheetId in appState.appData) {
-        await saveSheetToFirestore(sheetId, appState.appData[sheetId], false);
+        await saveSheetToFirestore(sheetId, appState.appData[sheetId], true);
     }
 
     progressFill.style.width = '100%';
@@ -234,70 +245,4 @@ async function processBulkUpload(files) {
 
         refreshNavigation();
     }, 500);
-}
-
-export async function processBulkUploadFromDashboard(files) {
-    const overlay = document.getElementById('dashboardLoadingOverlay');
-    const loadingText = document.getElementById('dashboardLoadingText');
-    const loadingSubtext = document.getElementById('dashboardLoadingSubtext');
-
-    overlay.classList.add('visible');
-    loadingText.textContent = 'Processing sheets...';
-    loadingSubtext.textContent = `0 of ${files.length} files`;
-
-    let processed = 0;
-    let successCount = 0;
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    for (const file of files) {
-        loadingSubtext.textContent = `${processed + 1} of ${files.length}: ${file.name}`;
-
-        const sheetConfig = GAUGE_SHEETS.find(s =>
-            file.name.toLowerCase().includes(s.fileName.toLowerCase().replace('.xlsx', '').replace('.xlsm', '')) ||
-            s.fileName.toLowerCase() === file.name.toLowerCase()
-        );
-
-        if (!sheetConfig) {
-            processed++;
-            continue;
-        }
-
-        const parser = PARSERS[sheetConfig.parser];
-        if (!parser) {
-            processed++;
-            continue;
-        }
-
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-            const data = parser.parse(workbook);
-
-            const existingData = appState.appData[sheetConfig.id];
-            appState.appData[sheetConfig.id] = mergeSheetData(existingData, data);
-            successCount++;
-        } catch (error) {
-            console.error(`Error processing ${file.name}:`, error);
-        }
-
-        processed++;
-        await new Promise(resolve => setTimeout(resolve, 10));
-    }
-
-    // Save all updated sheets to Firestore
-    if (successCount > 0) {
-        loadingText.textContent = 'Saving to cloud...';
-        for (const sheetId in appState.appData) {
-            await saveSheetToFirestore(sheetId, appState.appData[sheetId]);
-        }
-        refreshNavigation();
-    }
-    
-    loadingText.textContent = 'Complete!';
-    loadingSubtext.textContent = `${successCount} of ${files.length} sheets updated`;
-
-    setTimeout(() => {
-        overlay.classList.remove('visible');
-    }, 600);
 }

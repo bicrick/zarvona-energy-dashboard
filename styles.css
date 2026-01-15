@@ -2621,6 +2621,63 @@ tbody tr:nth-child(even) {
    Edit Modal
    ============================================================================ */
 
+.getting-started-modal {
+    max-width: 900px;
+    width: 90%;
+}
+
+.getting-started-modal .welcome-two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    padding: 1rem 0;
+}
+
+.getting-started-modal .bulk-upload-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.getting-started-modal .bulk-upload-area {
+    flex: 1;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #3a3f47;
+    border-radius: 12px;
+    background-color: #1e2126;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.getting-started-modal .bulk-upload-area:hover {
+    border-color: #3b82f6;
+    background-color: #252a33;
+}
+
+.getting-started-modal .required-files-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.getting-started-modal .required-files-list {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.getting-started-modal .required-files-list li {
+    margin-bottom: 0.25rem;
+    color: #9ea3ab;
+}
+
+@media (max-width: 768px) {
+    .getting-started-modal .welcome-two-column {
+        grid-template-columns: 1fr;
+    }
+}
+
 .edit-modal {
     display: none;
     position: fixed;

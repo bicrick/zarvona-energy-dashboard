@@ -4,6 +4,41 @@ export function getAggregateStats() {
     let totalOil = 0;
     let totalWater = 0;
     let totalGas = 0;
+
+    // Use optimized dashboard data if available
+    if (appState.dashboardData && appState.dashboardData.topProducers) {
+        // Aggregate from all wells in the system (not just top producers)
+        // We'll iterate through appData but use latestProduction from wells
+        Object.keys(appState.appData).forEach(sheetId => {
+            const sheet = appState.appData[sheetId];
+            if (!sheet) return;
+
+            // If wells are loaded with latestProduction, use that
+            if (sheet.wells && sheet.wells.length > 0) {
+                sheet.wells.forEach(well => {
+                    if (well.status === 'inactive') return;
+                    
+                    // Check if well has latestProduction (from optimized structure)
+                    if (well.latestProduction) {
+                        totalOil += Number(well.latestProduction.oil) || 0;
+                        totalWater += Number(well.latestProduction.water) || 0;
+                        totalGas += Math.max(0, Number(well.latestProduction.gas) || 0);
+                    }
+                });
+            }
+        });
+        
+        // If we got data, return it
+        if (totalOil > 0 || totalWater > 0 || totalGas > 0) {
+            return {
+                totalOil: Math.round(totalOil * 100) / 100,
+                totalWater: Math.round(totalWater * 100) / 100,
+                totalGas: Math.round(totalGas * 100) / 100
+            };
+        }
+    }
+
+    // Fallback to old method
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
@@ -233,6 +268,22 @@ export function getAggregateProductionTimeSeries(
 }
 
 export function getTopProducingWells(limit = 10) {
+    // Use optimized dashboard data if available
+    if (appState.dashboardData && appState.dashboardData.topProducers) {
+        return appState.dashboardData.topProducers.slice(0, limit).map(well => {
+            const sheetConfig = GAUGE_SHEETS.find(s => s.id === well.sheetId);
+            return {
+                wellId: well.id,
+                wellName: well.name,
+                sheetId: well.sheetId,
+                batteryName: sheetConfig ? sheetConfig.name : 'Unknown',
+                oil: well.latestProduction ? Math.round(Number(well.latestProduction.oil) * 100) / 100 : 0,
+                water: well.latestProduction ? Math.round(Number(well.latestProduction.water) * 100) / 100 : 0
+            };
+        });
+    }
+
+    // Fallback to old method if dashboard data not loaded
     const allWells = [];
     const today = new Date();
     today.setHours(23, 59, 59, 999);
@@ -275,6 +326,28 @@ export function getTopProducingWells(limit = 10) {
 }
 
 export function getRecentWellTests(limit = 10) {
+    // Use optimized dashboard data if available
+    if (appState.dashboardData && appState.dashboardData.recentTests) {
+        return appState.dashboardData.recentTests.slice(0, limit).map(well => {
+            const sheetConfig = GAUGE_SHEETS.find(s => s.id === well.sheetId);
+            const testDate = well.latestTest && well.latestTest.date ? 
+                (well.latestTest.date.toDate ? well.latestTest.date.toDate() : new Date(well.latestTest.date)) : 
+                new Date();
+            
+            return {
+                date: testDate,
+                wellId: well.id,
+                wellName: well.name,
+                sheetId: well.sheetId,
+                batteryName: sheetConfig ? sheetConfig.name : 'Unknown',
+                oil: well.latestTest ? Math.round(Number(well.latestTest.oil) * 100) / 100 : null,
+                water: well.latestTest ? Math.round(Number(well.latestTest.water) * 100) / 100 : null,
+                gas: well.latestTest ? Math.round(Math.max(0, Number(well.latestTest.gas)) * 100) / 100 : null
+            };
+        });
+    }
+
+    // Fallback to old method if dashboard data not loaded
     const allTests = [];
     const today = new Date();
     today.setHours(23, 59, 59, 999);
@@ -316,6 +389,29 @@ export function getRecentWellTests(limit = 10) {
 }
 
 export function getAllActionItems(limit = 15) {
+    // Use optimized dashboard data if available
+    if (appState.dashboardData && appState.dashboardData.actionItems) {
+        const allItems = [];
+        appState.dashboardData.actionItems.forEach(well => {
+            const sheetConfig = GAUGE_SHEETS.find(s => s.id === well.sheetId);
+            if (well.actionItems && well.actionItems.length > 0) {
+                well.actionItems.forEach(item => {
+                    if (item && item.trim()) {
+                        allItems.push({
+                            content: item,
+                            wellId: well.id,
+                            wellName: well.name,
+                            sheetId: well.sheetId,
+                            batteryName: sheetConfig ? sheetConfig.name : 'Unknown'
+                        });
+                    }
+                });
+            }
+        });
+        return allItems.slice(0, limit);
+    }
+
+    // Fallback to old method if dashboard data not loaded
     const allItems = [];
 
     Object.keys(appState.appData).forEach(sheetId => {

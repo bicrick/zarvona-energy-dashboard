@@ -1,6 +1,6 @@
 import '../styles.css';
 import { initializeTheme, initializeThemeToggle } from './theme.js';
-import { loadDataFromFirestore, loadGaugeSheetMetadata, loadDashboardSummary } from './firestore-storage.js';
+import { loadNavigationData, loadDashboardData } from './firestore-storage.js';
 import { initializeNavigation, initializeLogoHandler, initializeHamburgerToggle, refreshNavigation } from './navigation.js';
 import { initializeUploadHandlers, initializeBulkUploadHandlers } from './upload.js';
 import { initializeDashboardHandlers, setOnCacheCleared } from './dashboard.js';
@@ -31,9 +31,9 @@ async function initializeApp() {
     
     initializeTheme();
     
-    // Phase 1: Load minimal data (metadata only)
+    // Phase 1: Load minimal data (navigation data only)
     appState.isLoading = true;
-    await loadGaugeSheetMetadata();
+    await loadNavigationData();
     
     // Initialize UI components
     initializeNavigation();
@@ -62,8 +62,8 @@ async function initializeApp() {
 
 async function loadDashboardSummaryInBackground() {
     try {
-        // Load recent data for dashboard
-        await loadDashboardSummary();
+        // Load optimized dashboard data
+        await loadDashboardData();
         
         // Mark loading as complete BEFORE rendering
         appState.isLoading = false;

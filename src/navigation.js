@@ -178,16 +178,38 @@ function createGaugeSheetNavItem(sheet) {
     const wellsLoaded = sheetData && sheetData._wellsLoaded;
     const activeWells = wellsLoaded ? sheetData.wells.filter(w => w.status !== 'inactive') : [];
     
+    // Hardcoded well counts as requested
+    const HARDCODED_COUNTS = {
+        'cowden': 3,
+        'bigmax': 11,
+        'bigmax1h': 1,
+        'southandrews': 21,
+        'polaris': 2,
+        'shusa': 40,
+        'mwwemac': 8,
+        'unit130': 1,
+        'uls35h': 4
+    };
+
     // Use cached well count if available, otherwise calculate from loaded wells
     const cachedCount = appState.metadataCache.wellCounts[sheet.id];
-    const wellCount = cachedCount !== undefined ? cachedCount : activeWells.length;
+    let wellCount = cachedCount !== undefined ? cachedCount : activeWells.length;
+    
+    // Fallback to hardcoded count if available and no real count yet
+    if (wellCount === 0 && !wellsLoaded && HARDCODED_COUNTS[sheet.id] !== undefined) {
+        wellCount = HARDCODED_COUNTS[sheet.id];
+    }
 
     // Determine status text
     let statusText = 'No data';
     let statusClass = 'not-uploaded';
     
     if (hasMetadata) {
-        if (cachedCount !== undefined || wellsLoaded) {
+        // If we have a hardcoded count, use it instead of loading state
+        if (HARDCODED_COUNTS[sheet.id] !== undefined) {
+            statusText = HARDCODED_COUNTS[sheet.id] + ' wells';
+            statusClass = 'uploaded';
+        } else if (cachedCount !== undefined || wellsLoaded) {
             statusText = wellCount + ' wells';
             statusClass = 'uploaded';
         } else {
@@ -218,7 +240,10 @@ function createGaugeSheetNavItem(sheet) {
         // Load wells on-demand when expanding
         if (hasMetadata && !wellsLoaded) {
             const indicator = navItem.querySelector('.upload-indicator');
-            indicator.textContent = 'Loading...';
+            // Only show loading if we don't have a hardcoded count
+            if (HARDCODED_COUNTS[sheet.id] === undefined) {
+                indicator.textContent = 'Loading...';
+            }
             
             await loadWellsList(sheet.id);
             
