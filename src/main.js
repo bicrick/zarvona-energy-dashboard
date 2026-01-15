@@ -15,20 +15,6 @@ let appInitialized = false;
 async function initializeApp() {
     if (appInitialized) return;
     
-    // Show loading overlay with initial message
-    const appContainer = document.querySelector('.app-container');
-    let loadingOverlay = document.createElement('div');
-    loadingOverlay.className = 'loading-overlay';
-    loadingOverlay.style.display = 'flex';
-    loadingOverlay.style.position = 'fixed';
-    loadingOverlay.style.top = '0';
-    loadingOverlay.style.left = '0';
-    loadingOverlay.style.right = '0';
-    loadingOverlay.style.bottom = '0';
-    loadingOverlay.style.zIndex = '9999';
-    loadingOverlay.innerHTML = '<div class="loading-content"><div class="loading-spinner"></div><p class="loading-text">Loading...</p></div>';
-    document.body.appendChild(loadingOverlay);
-    
     initializeTheme();
     
     // Phase 1: Load minimal data (navigation data only)
@@ -48,11 +34,6 @@ async function initializeApp() {
     // Show the app immediately with loading states
     showView('welcome');
     showApp();
-    
-    // Remove loading overlay
-    if (loadingOverlay && loadingOverlay.parentNode) {
-        loadingOverlay.parentNode.removeChild(loadingOverlay);
-    }
     
     appInitialized = true;
     

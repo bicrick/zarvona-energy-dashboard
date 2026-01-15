@@ -2,9 +2,12 @@ import {
     signInWithEmailAndPassword, 
     signOut as firebaseSignOut,
     onAuthStateChanged,
-    createUserWithEmailAndPassword
+    createUserWithEmailAndPassword,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase.js';
+
+const ALLOWED_DOMAIN = '@zarvonaenergy.com';
 
 let authStateCallback = null;
 
@@ -52,6 +55,15 @@ export async function signOut() {
 }
 
 /**
+ * Validate email domain
+ * @param {string} email 
+ * @returns {boolean}
+ */
+function isValidDomain(email) {
+    return email.toLowerCase().endsWith(ALLOWED_DOMAIN.toLowerCase());
+}
+
+/**
  * Create a new user account
  * @param {string} email 
  * @param {string} password 
@@ -59,10 +71,41 @@ export async function signOut() {
  */
 export async function createAccount(email, password) {
     try {
+        // Validate domain
+        if (!isValidDomain(email)) {
+            return { 
+                success: false, 
+                error: `Only ${ALLOWED_DOMAIN} email addresses are allowed.` 
+            };
+        }
+        
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         return { success: true, user: userCredential.user };
     } catch (error) {
         console.error('Create account error:', error);
+        return { success: false, error: getErrorMessage(error) };
+    }
+}
+
+/**
+ * Send password reset email
+ * @param {string} email 
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function resetPassword(email) {
+    try {
+        // Validate domain
+        if (!isValidDomain(email)) {
+            return { 
+                success: false, 
+                error: `Only ${ALLOWED_DOMAIN} email addresses are allowed.` 
+            };
+        }
+        
+        await sendPasswordResetEmail(auth, email);
+        return { success: true };
+    } catch (error) {
+        console.error('Password reset error:', error);
         return { success: false, error: getErrorMessage(error) };
     }
 }
@@ -104,18 +147,45 @@ function getErrorMessage(error) {
 }
 
 /**
+ * Hide the auth splash screen
+ */
+export function hideAuthSplash() {
+    const splash = document.getElementById('authSplash');
+    if (splash) {
+        splash.classList.add('fade-out');
+        // Remove from DOM after animation completes
+        setTimeout(() => {
+            if (splash.parentNode) {
+                splash.parentNode.removeChild(splash);
+            }
+        }, 300);
+    }
+}
+
+/**
  * Show the login view and hide the app
  */
 export function showLoginView() {
     const loginView = document.getElementById('loginView');
     const appContainer = document.querySelector('.app-container');
     
-    if (loginView) {
-        loginView.style.display = 'flex';
-    }
-    if (appContainer) {
-        appContainer.style.display = 'none';
-    }
+    // Hide splash first
+    hideAuthSplash();
+    
+    // Wait for splash to fade out, then show login
+    setTimeout(() => {
+        if (loginView) {
+            loginView.style.display = 'flex';
+            // Trigger fade-in animation
+            requestAnimationFrame(() => {
+                loginView.classList.add('fade-in');
+            });
+        }
+        if (appContainer) {
+            appContainer.style.display = 'none';
+            appContainer.classList.remove('fade-in');
+        }
+    }, 100);
 }
 
 /**
@@ -125,12 +195,23 @@ export function showApp() {
     const loginView = document.getElementById('loginView');
     const appContainer = document.querySelector('.app-container');
     
-    if (loginView) {
-        loginView.style.display = 'none';
-    }
-    if (appContainer) {
-        appContainer.style.display = 'flex';
-    }
+    // Hide splash first
+    hideAuthSplash();
+    
+    // Wait for splash to fade out, then show app
+    setTimeout(() => {
+        if (loginView) {
+            loginView.style.display = 'none';
+            loginView.classList.remove('fade-in');
+        }
+        if (appContainer) {
+            appContainer.style.display = 'flex';
+            // Trigger fade-in animation
+            requestAnimationFrame(() => {
+                appContainer.classList.add('fade-in');
+            });
+        }
+    }, 100);
 }
 
 /**
@@ -146,15 +227,17 @@ export function initializeLoginHandlers() {
 
     // Login form submission
     if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
+        const handleLogin = async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
+            const successDiv = document.getElementById('loginSuccess');
             const submitBtn = loginForm.querySelector('button[type="submit"]');
 
-            // Clear previous errors
+            // Clear previous messages
             errorDiv.textContent = '';
+            successDiv.textContent = '';
             submitBtn.disabled = true;
             submitBtn.textContent = 'Signing in...';
 
@@ -166,14 +249,59 @@ export function initializeLoginHandlers() {
                 submitBtn.textContent = 'Sign In';
             }
             // If successful, auth state observer will handle showing the app
+        };
+        
+        loginForm.addEventListener('submit', handleLogin);
+        
+        // Add Enter key handler for password field
+        const passwordInput = document.getElementById('loginPassword');
+        if (passwordInput) {
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    loginForm.dispatchEvent(new Event('submit'));
+                }
+            });
+        }
+    }
+
+    // Forgot password handler
+    const forgotPasswordLink = document.getElementById('forgotPassword');
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById('loginEmail');
+            const errorDiv = document.getElementById('loginError');
+            const successDiv = document.getElementById('loginSuccess');
+            
+            // Clear previous messages
+            errorDiv.textContent = '';
+            successDiv.textContent = '';
+            
+            const email = emailInput.value.trim();
+            
+            if (!email) {
+                errorDiv.textContent = 'Please enter your email address first.';
+                emailInput.focus();
+                return;
+            }
+            
+            const result = await resetPassword(email);
+            
+            if (result.success) {
+                successDiv.textContent = 'Password reset email sent! Check your inbox.';
+                emailInput.value = '';
+            } else {
+                errorDiv.textContent = result.error;
+            }
         });
     }
 
     // Signup form submission
     if (signupForm) {
-        signupForm.addEventListener('submit', async (e) => {
+        const handleSignup = async (e) => {
             e.preventDefault();
-            const email = document.getElementById('signupEmail').value;
+            const username = document.getElementById('signupUsername').value.trim();
             const password = document.getElementById('signupPassword').value;
             const confirmPassword = document.getElementById('signupConfirmPassword').value;
             const errorDiv = document.getElementById('signupError');
@@ -181,6 +309,15 @@ export function initializeLoginHandlers() {
 
             // Clear previous errors
             errorDiv.textContent = '';
+
+            // Validate username (basic check)
+            if (!username) {
+                errorDiv.textContent = 'Please enter a username.';
+                return;
+            }
+
+            // Construct full email
+            const email = username + ALLOWED_DOMAIN;
 
             // Validate passwords match
             if (password !== confirmPassword) {
@@ -199,7 +336,20 @@ export function initializeLoginHandlers() {
                 submitBtn.textContent = 'Create Account';
             }
             // If successful, auth state observer will handle showing the app
-        });
+        };
+        
+        signupForm.addEventListener('submit', handleSignup);
+        
+        // Add Enter key handler for confirm password field
+        const confirmPasswordInput = document.getElementById('signupConfirmPassword');
+        if (confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    signupForm.dispatchEvent(new Event('submit'));
+                }
+            });
+        }
     }
 
     // Toggle between login and signup
