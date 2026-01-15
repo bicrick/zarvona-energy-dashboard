@@ -1,5 +1,5 @@
 import { GAUGE_SHEETS, appState } from './config.js';
-import { saveSheetToFirestore, fetchSheetFromFirestore } from './firestore-storage.js';
+import { saveSheetToFirestore, fetchSheetFromFirestore, loadNavigationData, loadDashboardData } from './firestore-storage.js';
 import { refreshNavigation } from './navigation.js';
 import { showGaugeSheetView } from './views.js';
 import { PARSERS } from './parsers/index.js';
@@ -99,6 +99,13 @@ async function processUploadedFile(file) {
         
         // Save to Firestore (full data)
         await saveSheetToFirestore(appState.currentSheet, mergedData, true);
+
+        progressFill.style.width = '95%';
+        progressText.textContent = 'Refreshing data...';
+        
+        // Force a full data refresh from Firestore to ensure local state is up to date
+        await loadNavigationData();
+        await loadDashboardData();
 
         progressFill.style.width = '100%';
         progressText.textContent = 'Complete!';
@@ -224,9 +231,17 @@ async function processBulkUpload(files) {
     }
 
     // Save all sheets to Firestore (full data)
+    progressText.textContent = 'Saving to cloud...';
     for (const sheetId in appState.appData) {
         await saveSheetToFirestore(sheetId, appState.appData[sheetId], true);
     }
+
+    progressFill.style.width = '95%';
+    progressText.textContent = 'Refreshing data...';
+    
+    // Force a full data refresh from Firestore to ensure local state is up to date
+    await loadNavigationData();
+    await loadDashboardData();
 
     progressFill.style.width = '100%';
     progressText.textContent = 'Complete!';
