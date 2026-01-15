@@ -1,8 +1,9 @@
-import { appState, STORAGE_KEY } from './config.js';
+import { appState } from './config.js';
 import { formatDate } from './utils.js';
 import { getAggregateStats, getTopProducingWells, getRecentWellTests, getAllActionItems } from './data-aggregation.js';
 import { showWellView } from './views.js';
 import { processBulkUploadFromDashboard } from './upload.js';
+import { clearFirestoreData } from './firestore-storage.js';
 
 let onCacheCleared = null;
 
@@ -130,17 +131,18 @@ export function initializeDashboardHandlers() {
     }
 
     if (btnClearCache) {
-        btnClearCache.addEventListener('click', () => {
-            if (confirm('Clear all cached data? You will need to re-upload your gauge sheets.')) {
-                clearCache();
+        btnClearCache.addEventListener('click', async () => {
+            if (confirm('Clear all data from the cloud? You will need to re-upload your gauge sheets.')) {
+                await clearCache();
             }
         });
     }
 }
 
-function clearCache() {
-    localStorage.removeItem(STORAGE_KEY);
-    appState.appData = {};
+async function clearCache() {
+    // Clear data from Firestore
+    await clearFirestoreData();
+    
     if (onCacheCleared) {
         onCacheCleared();
     }

@@ -1,5 +1,5 @@
 import { GAUGE_SHEETS, appState } from './config.js';
-import { saveDataToStorage } from './storage.js';
+import { saveSheetToFirestore } from './firestore-storage.js';
 import { refreshNavigation } from './navigation.js';
 import { showGaugeSheetView } from './views.js';
 import { PARSERS } from './parsers/index.js';
@@ -86,7 +86,9 @@ async function processUploadedFile(file) {
 
         const existingData = appState.appData[appState.currentSheet];
         appState.appData[appState.currentSheet] = mergeSheetData(existingData, data);
-        saveDataToStorage();
+        
+        // Save to Firestore (incremental - only last 30 days)
+        await saveSheetToFirestore(appState.currentSheet, appState.appData[appState.currentSheet], false);
 
         progressFill.style.width = '100%';
         progressText.textContent = 'Complete!';
@@ -209,7 +211,11 @@ async function processBulkUpload(files) {
         processed++;
     }
 
-    saveDataToStorage();
+    // Save all sheets to Firestore (incremental update - only last 30 days)
+    // This reduces Firestore writes and avoids quota issues
+    for (const sheetId in appState.appData) {
+        await saveSheetToFirestore(sheetId, appState.appData[sheetId], false);
+    }
 
     progressFill.style.width = '100%';
     progressText.textContent = 'Complete!';
@@ -279,13 +285,17 @@ export async function processBulkUploadFromDashboard(files) {
         await new Promise(resolve => setTimeout(resolve, 10));
     }
 
-    loadingText.textContent = 'Complete!';
-    loadingSubtext.textContent = `${successCount} of ${files.length} sheets updated`;
-
+    // Save all updated sheets to Firestore
     if (successCount > 0) {
-        saveDataToStorage();
+        loadingText.textContent = 'Saving to cloud...';
+        for (const sheetId in appState.appData) {
+            await saveSheetToFirestore(sheetId, appState.appData[sheetId]);
+        }
         refreshNavigation();
     }
+    
+    loadingText.textContent = 'Complete!';
+    loadingSubtext.textContent = `${successCount} of ${files.length} sheets updated`;
 
     setTimeout(() => {
         overlay.classList.remove('visible');

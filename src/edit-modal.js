@@ -1,5 +1,5 @@
 import { appState } from './config.js';
-import { saveDataToStorage } from './storage.js';
+import { updateWellInFirestore } from './firestore-storage.js';
 import { formatDateForInput, escapeHtml } from './utils.js';
 
 let onEditSave = null;
@@ -397,7 +397,7 @@ function attachDeleteHandler(btn) {
     });
 }
 
-function saveEditedData() {
+async function saveEditedData() {
     if (!appState.currentSheet || !appState.currentWell || !appState.currentEditSection) return;
 
     const sheetData = appState.appData[appState.currentSheet];
@@ -407,23 +407,30 @@ function saveEditedData() {
     if (wellIndex === -1) return;
 
     const well = sheetData.wells[wellIndex];
+    const updates = {};
 
     switch (appState.currentEditSection) {
         case 'chemicalProgram':
             well.chemicalProgram = readChemicalProgramForm();
+            updates.chemicalProgram = well.chemicalProgram;
             break;
         case 'failureHistory':
             well.failureHistory = readFailureHistoryForm();
+            updates.failureHistory = well.failureHistory;
             break;
         case 'actionItems':
             well.actionItems = readActionItemsForm();
+            updates.actionItems = well.actionItems;
             break;
         case 'pressureReadings':
             well.pressureReadings = readPressureReadingsForm();
+            updates.pressureReadings = well.pressureReadings;
             break;
     }
 
-    saveDataToStorage();
+    // Save to Firestore
+    await updateWellInFirestore(appState.currentSheet, appState.currentWell, updates);
+    
     closeEditModal();
 
     if (onEditSave) {

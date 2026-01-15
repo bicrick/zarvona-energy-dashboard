@@ -1,11 +1,11 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig(({ command }) => ({
-    base: command === 'build' ? '/zarvona-energy-dashboard/' : '/',
+export default defineConfig({
+    base: '/',
     build: {
-        outDir: 'docs'
+        outDir: 'dist'
     },
     server: {
         port: 5173
     }
-}));
+});

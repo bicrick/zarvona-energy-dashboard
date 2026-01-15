@@ -1,5 +1,7 @@
 # Sensitive data - gauge sheets with proprietary info
+node_modules/
 sheets/
 
 # OS files
 .DS_Store
+

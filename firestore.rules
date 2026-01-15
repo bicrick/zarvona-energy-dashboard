@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Gauge sheets and all nested collections
+    // All authenticated users can read and write (shared data model)
+    match /gaugeSheets/{sheetId} {
+      allow read, write: if isAuthenticated();
+      
+      // Wells subcollection
+      match /wells/{wellId} {
+        allow read, write: if isAuthenticated();
+        
+        // Production subcollection
+        match /production/{prodId} {
+          allow read, write: if isAuthenticated();
+        }
+        
+        // Well tests subcollection
+        match /wellTests/{testId} {
+          allow read, write: if isAuthenticated();
+        }
+      }
+      
+      // Battery production subcollection
+      match /batteryProduction/{prodId} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      // Run tickets subcollection
+      match /runTickets/{ticketId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+  }
+}

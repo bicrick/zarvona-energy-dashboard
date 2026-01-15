@@ -33,5 +33,9 @@ export const appState = {
     waterChartDateRange: { min: null, max: null },
     gasChartDateRange: { min: null, max: null },
     pressureCharts: { psi: null, injVol: null },
-    currentEditSection: null
+    currentEditSection: null,
+    // Progressive loading state
+    isLoading: false,
+    loadedSheets: [],
+    loadedWells: {}
 };

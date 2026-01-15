@@ -1,15 +1,41 @@
 import '../styles.css';
 import { initializeTheme, initializeThemeToggle } from './theme.js';
-import { loadDataFromStorage } from './storage.js';
+import { loadDataFromFirestore, loadGaugeSheetMetadata, loadDashboardSummary } from './firestore-storage.js';
 import { initializeNavigation, initializeLogoHandler, initializeHamburgerToggle, refreshNavigation } from './navigation.js';
 import { initializeUploadHandlers, initializeBulkUploadHandlers } from './upload.js';
 import { initializeDashboardHandlers, setOnCacheCleared } from './dashboard.js';
 import { updateWelcomeStats, showView, showWellView } from './views.js';
 import { setOnEditSave } from './edit-modal.js';
+import { initializeAuthObserver, showLoginView, showApp, initializeLoginHandlers, signOut } from './auth.js';
+import { auth } from './firebase.js';
+import { appState } from './config.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+let appInitialized = false;
+
+async function initializeApp() {
+    if (appInitialized) return;
+    
+    // Show loading overlay with initial message
+    const appContainer = document.querySelector('.app-container');
+    let loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'loading-overlay';
+    loadingOverlay.style.display = 'flex';
+    loadingOverlay.style.position = 'fixed';
+    loadingOverlay.style.top = '0';
+    loadingOverlay.style.left = '0';
+    loadingOverlay.style.right = '0';
+    loadingOverlay.style.bottom = '0';
+    loadingOverlay.style.zIndex = '9999';
+    loadingOverlay.innerHTML = '<div class="loading-content"><div class="loading-spinner"></div><p class="loading-text">Loading...</p></div>';
+    document.body.appendChild(loadingOverlay);
+    
     initializeTheme();
-    loadDataFromStorage();
+    
+    // Phase 1: Load minimal data (metadata only)
+    appState.isLoading = true;
+    await loadGaugeSheetMetadata();
+    
+    // Initialize UI components
     initializeNavigation();
     initializeUploadHandlers();
     initializeBulkUploadHandlers();
@@ -17,8 +43,95 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeLogoHandler();
     initializeHamburgerToggle();
     initializeThemeToggle();
-    updateWelcomeStats();
+    initializeUserMenu();
+    
+    // Show the app immediately with loading states
     showView('welcome');
+    showApp();
+    
+    // Remove loading overlay
+    if (loadingOverlay && loadingOverlay.parentNode) {
+        loadingOverlay.parentNode.removeChild(loadingOverlay);
+    }
+    
+    appInitialized = true;
+    
+    // Phase 2: Load dashboard summary data in background
+    loadDashboardSummaryInBackground();
+}
+
+async function loadDashboardSummaryInBackground() {
+    try {
+        // Load recent data for dashboard
+        await loadDashboardSummary();
+        
+        // Update dashboard with loaded data
+        updateWelcomeStats();
+        
+        // Refresh navigation to show well counts
+        refreshNavigation();
+        
+        appState.isLoading = false;
+        console.log('Background loading complete');
+    } catch (error) {
+        console.error('Error loading dashboard summary:', error);
+        appState.isLoading = false;
+    }
+}
+
+function initializeUserMenu() {
+    const userAvatarBtn = document.getElementById('userAvatarBtn');
+    const userDropdown = document.getElementById('userDropdown');
+    const userEmail = document.getElementById('userEmail');
+    const btnSignOutDropdown = document.getElementById('btnSignOutDropdown');
+    
+    if (!userAvatarBtn || !userDropdown) return;
+    
+    // Get current user and display email
+    const user = auth.currentUser;
+    if (user && userEmail) {
+        userEmail.textContent = user.email;
+    }
+    
+    // Toggle dropdown on avatar click
+    userAvatarBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userDropdown.classList.toggle('active');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!userDropdown.contains(e.target) && e.target !== userAvatarBtn) {
+            userDropdown.classList.remove('active');
+        }
+    });
+    
+    // Sign out handler
+    if (btnSignOutDropdown) {
+        btnSignOutDropdown.addEventListener('click', async () => {
+            userDropdown.classList.remove('active');
+            await signOut();
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize login handlers
+    initializeLoginHandlers();
+    
+    // Initialize auth observer
+    initializeAuthObserver((user) => {
+        if (user) {
+            // User is signed in
+            console.log('User signed in:', user.email);
+            initializeApp();
+        } else {
+            // No user signed in
+            console.log('User signed out');
+            showLoginView();
+            appInitialized = false;
+        }
+    });
 });
 
 setOnEditSave((sheetId, wellId) => {
