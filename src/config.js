@@ -37,5 +37,10 @@ export const appState = {
     // Progressive loading state
     isLoading: false,
     loadedSheets: [],
-    loadedWells: {}
+    loadedWells: {},
+    // Metadata cache for quick navigation updates
+    metadataCache: {
+        wellCounts: {},  // { sheetId: count }
+        wellNames: {}    // { sheetId: [{ id, name }] }
+    }
 };

@@ -1063,6 +1063,13 @@ body {
     color: var(--text-primary);
 }
 
+.explorer-battery-simple .battery-well-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+    padding-left: 8px;
+}
+
 .explorer-battery-header {
     display: flex;
     align-items: center;
@@ -1932,8 +1939,8 @@ tbody tr:nth-child(even) {
 }
 
 .nav-gauge-sheet .upload-indicator.uploaded {
-    background: rgba(52, 211, 153, 0.15);
-    color: var(--success);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
 }
 
 .nav-gauge-sheet .upload-indicator.not-uploaded {

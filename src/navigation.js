@@ -177,14 +177,17 @@ function createGaugeSheetNavItem(sheet) {
     const hasMetadata = sheetData && sheetData._metadataLoaded;
     const wellsLoaded = sheetData && sheetData._wellsLoaded;
     const activeWells = wellsLoaded ? sheetData.wells.filter(w => w.status !== 'inactive') : [];
-    const wellCount = activeWells.length;
+    
+    // Use cached well count if available, otherwise calculate from loaded wells
+    const cachedCount = appState.metadataCache.wellCounts[sheet.id];
+    const wellCount = cachedCount !== undefined ? cachedCount : activeWells.length;
 
     // Determine status text
     let statusText = 'No data';
     let statusClass = 'not-uploaded';
     
     if (hasMetadata) {
-        if (wellsLoaded) {
+        if (cachedCount !== undefined || wellsLoaded) {
             statusText = wellCount + ' wells';
             statusClass = 'uploaded';
         } else {

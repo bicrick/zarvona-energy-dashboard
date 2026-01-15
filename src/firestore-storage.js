@@ -540,7 +540,8 @@ export async function loadGaugeSheetMetadata() {
                 batteryProduction: [],
                 runTickets: [],
                 _metadataLoaded: true,
-                _wellsLoaded: false
+                _wellsLoaded: false,
+                _aggregateLoaded: false
             };
         }
         
@@ -621,6 +622,13 @@ export async function loadDashboardSummary() {
             }
             
             sheetData._wellsLoaded = true;
+            
+            // Populate metadata cache for fast navigation updates
+            appState.metadataCache.wellCounts[sheetId] = sheetData.wells.length;
+            appState.metadataCache.wellNames[sheetId] = sheetData.wells.map(w => ({
+                id: w.id,
+                name: w.name
+            }));
         }
         
         console.log('Dashboard summary data loaded');
@@ -676,6 +684,14 @@ export async function loadWellsList(sheetId) {
         }
         
         sheetData._wellsLoaded = true;
+        
+        // Populate metadata cache for fast navigation updates
+        appState.metadataCache.wellCounts[sheetId] = sheetData.wells.length;
+        appState.metadataCache.wellNames[sheetId] = sheetData.wells.map(w => ({
+            id: w.id,
+            name: w.name
+        }));
+        
         console.log(`Loaded ${sheetData.wells.length} wells for ${sheetId}`);
         return true;
     } catch (error) {
@@ -811,6 +827,9 @@ export async function loadSheetAggregateData(sheetId) {
         const runTicketsSnapshot = await getDocs(runTicketsColl);
         sheetData.runTickets = runTicketsSnapshot.docs.map(doc => doc.data());
         
+        // Mark aggregate data as loaded
+        sheetData._aggregateLoaded = true;
+        
         console.log(`Loaded aggregate data for ${sheetId}`);
         return true;
     } catch (error) {
@@ -818,3 +837,4 @@ export async function loadSheetAggregateData(sheetId) {
         return false;
     }
 }
+

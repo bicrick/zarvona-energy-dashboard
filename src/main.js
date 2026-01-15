@@ -65,17 +65,22 @@ async function loadDashboardSummaryInBackground() {
         // Load recent data for dashboard
         await loadDashboardSummary();
         
+        // Mark loading as complete BEFORE rendering
+        appState.isLoading = false;
+        
         // Update dashboard with loaded data
         updateWelcomeStats();
         
         // Refresh navigation to show well counts
         refreshNavigation();
         
-        appState.isLoading = false;
         console.log('Background loading complete');
     } catch (error) {
         console.error('Error loading dashboard summary:', error);
         appState.isLoading = false;
+        // Still try to render whatever data we have
+        updateWelcomeStats();
+        refreshNavigation();
     }
 }
 

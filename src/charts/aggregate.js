@@ -1,21 +1,59 @@
 import { appState, GAUGE_SHEETS } from '../config.js';
 import { hasUploadedData, getBatteryProductionTimeSeries } from '../data-aggregation.js';
 import { showView } from '../views.js';
+import { loadSheetAggregateData } from '../firestore-storage.js';
 
-export function showOilChartView(startDate = null, endDate = null) {
+export async function showOilChartView(startDate = null, endDate = null) {
     showView('oilChart');
+    
+    // Load battery production data only (not full well details)
+    await ensureAggregateDataLoaded('oil');
+    
     renderAggregateChart('oil', startDate, endDate);
 }
 
-export function showWaterChartView(startDate = null, endDate = null) {
+export async function showWaterChartView(startDate = null, endDate = null) {
     showView('waterChart');
+    
+    // Load battery production data only (not full well details)
+    await ensureAggregateDataLoaded('water');
+    
     renderAggregateChart('water', startDate, endDate);
 }
 
-export function showGasChartView(startDate = null, endDate = null) {
+export async function showGasChartView(startDate = null, endDate = null) {
     showView('gasChart');
+    
+    // Load battery production data only (not full well details)
+    await ensureAggregateDataLoaded('gas');
+    
     renderAggregateChart('gas', startDate, endDate);
 }
+
+/**
+ * Ensure battery-level aggregate data is loaded for sheets that need it
+ * This is much faster than loading full well details
+ */
+async function ensureAggregateDataLoaded(dataType) {
+    const loadPromises = [];
+    
+    for (const sheetId in appState.appData) {
+        const sheetData = appState.appData[sheetId];
+        if (!sheetData) continue;
+        
+        // Only load aggregate data if not already loaded
+        if (!sheetData._aggregateLoaded) {
+            loadPromises.push(loadSheetAggregateData(sheetId));
+        }
+    }
+    
+    if (loadPromises.length > 0) {
+        console.log(`Loading aggregate data for ${loadPromises.length} sheets...`);
+        await Promise.all(loadPromises);
+        console.log('Aggregate data loaded');
+    }
+}
+
 
 function renderAggregateChart(dataType, startDate = null, endDate = null) {
     const chartConfig = {
@@ -318,12 +356,14 @@ function populateBatteriesFilter(dataType) {
         const sheetData = appState.appData[sheetConfig.id];
         if (!sheetData) return;
 
-        // Check if battery has production data (either battery-level or wells)
-        const hasData = (sheetData.batteryProduction && sheetData.batteryProduction.length > 0) ||
-                       (sheetData.wells && sheetData.wells.length > 0);
-        if (!hasData) return;
+        // Check if battery has metadata (sheet has been loaded)
+        if (!sheetData._metadataLoaded) return;
 
         const isSelected = !selectedBatteries || selectedBatteries.has(sheetConfig.id);
+        
+        // Get well count from cache or from loaded data
+        const wellCount = appState.metadataCache.wellCounts[sheetConfig.id] || 
+                         (sheetData.wells ? sheetData.wells.length : 0);
 
         const batteryItem = document.createElement('label');
         batteryItem.className = 'explorer-battery-simple explorer-checkbox';
@@ -331,6 +371,7 @@ function populateBatteriesFilter(dataType) {
             <input type="checkbox" class="battery-checkbox" data-battery="${sheetConfig.id}" ${isSelected ? 'checked' : ''}>
             <span class="checkmark"></span>
             <span class="battery-name">${sheetConfig.name}</span>
+            <span class="battery-well-count">${wellCount} wells</span>
         `;
         container.appendChild(batteryItem);
 
