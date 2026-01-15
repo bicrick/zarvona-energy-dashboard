@@ -940,6 +940,29 @@ body {
     overflow: hidden;
 }
 
+/* Simplified battery filter (no expandable wells) */
+.explorer-battery-simple {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.explorer-battery-simple:hover {
+    background: var(--bg-card);
+}
+
+.explorer-battery-simple .battery-name {
+    flex: 1;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
 .explorer-battery-header {
     display: flex;
     align-items: center;

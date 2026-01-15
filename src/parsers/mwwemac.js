@@ -21,6 +21,14 @@ export const MWWemacParser = {
         { id: 'sabrina-3', name: 'Sabrina #3', oilCol: 37, waterCol: 38, gasCol: 39, status: 'inactive' },  // Inactive per user
         { id: 'sabrina-12', name: 'Sabrina #12', oilCol: 43, waterCol: 44, gasCol: 45, status: 'inactive' }  // Inactive per user
     ],
+    productionConfig: {
+        sheet: 'Berkley',
+        headerRowIndex: 3,
+        dateCol: 0,
+        oilProdCol: 25,
+        waterProdCol: 26,
+        gasProdCol: 27
+    },
 
     parse(workbook) {
         const result = {
@@ -29,7 +37,8 @@ export const MWWemacParser = {
             lastUpdated: new Date().toISOString(),
             wells: [],
             runTickets: [],
-            rawRowCount: 0
+            rawRowCount: 0,
+            batteryProduction: []
         };
 
         if (workbook.Sheets['Well_Test']) {
@@ -37,6 +46,9 @@ export const MWWemacParser = {
             result.wells = wellTestData.wells;
             result.rawRowCount = wellTestData.rowCount;
         }
+
+        // Parse battery-level production
+        result.batteryProduction = this.parseBatteryProduction(workbook);
 
         return result;
     },
@@ -84,6 +96,41 @@ export const MWWemacParser = {
         });
 
         return { wells, rowCount };
+    },
+
+    parseBatteryProduction(workbook) {
+        const config = this.productionConfig;
+        if (!config) return [];
+        const sheet = workbook.Sheets[config.sheet];
+        if (!sheet) return [];
+
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        if (!data || data.length === 0) return [];
+
+        const production = [];
+
+        for (let i = config.headerRowIndex + 2; i < data.length; i++) {
+            const row = data[i];
+            if (!row) continue;
+            const dateStr = this.parseDate(row[config.dateCol]);
+            if (!dateStr) continue;
+
+            const oil = this.parseNumber(row[config.oilProdCol]);
+            const water = this.parseNumber(row[config.waterProdCol]);
+            const gas = config.gasProdCol !== null ? this.parseNumber(row[config.gasProdCol]) : null;
+
+            if (oil !== null || water !== null || gas !== null) {
+                production.push({
+                    date: new Date(dateStr),
+                    oil: oil,
+                    water: water,
+                    gas: gas
+                });
+            }
+        }
+
+        production.sort((a, b) => a.date - b.date);
+        return production;
     },
 
     parseDate(val) {

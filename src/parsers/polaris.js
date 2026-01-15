@@ -14,6 +14,14 @@ export const PolarisParser = {
         { id: 'polaris-1', name: 'Polaris #1', oilCol: 1, waterCol: 2, gasCol: 3, status: 'active' },
         { id: 'polaris-2', name: 'Polaris #2', oilCol: 5, waterCol: 6, gasCol: 7, status: 'inactive' }  // Inactive per user
     ],
+    productionConfig: {
+        sheet: 'Polaris 1',
+        headerRowIndex: 3,
+        dateCol: 0,
+        oilProdCol: 16,
+        waterProdCol: 17,
+        gasProdCol: null  // No gas production for Polaris
+    },
 
     parse(workbook) {
         const result = {
@@ -22,7 +30,8 @@ export const PolarisParser = {
             lastUpdated: new Date().toISOString(),
             wells: [],
             runTickets: [],
-            rawRowCount: 0
+            rawRowCount: 0,
+            batteryProduction: []
         };
 
         if (workbook.Sheets['Well Test']) {
@@ -30,6 +39,9 @@ export const PolarisParser = {
             result.wells = wellTestData.wells;
             result.rawRowCount = wellTestData.rowCount;
         }
+
+        // Parse battery-level production
+        result.batteryProduction = this.parseBatteryProduction(workbook);
 
         if (workbook.Sheets['Run Tickets']) {
             result.runTickets = this.parseRunTicketsSheet(workbook.Sheets['Run Tickets']);
@@ -81,6 +93,41 @@ export const PolarisParser = {
         });
 
         return { wells, rowCount };
+    },
+
+    parseBatteryProduction(workbook) {
+        const config = this.productionConfig;
+        if (!config) return [];
+        const sheet = workbook.Sheets[config.sheet];
+        if (!sheet) return [];
+
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        if (!data || data.length === 0) return [];
+
+        const production = [];
+
+        for (let i = config.headerRowIndex + 2; i < data.length; i++) {
+            const row = data[i];
+            if (!row) continue;
+            const dateStr = this.parseDate(row[config.dateCol]);
+            if (!dateStr) continue;
+
+            const oil = this.parseNumber(row[config.oilProdCol]);
+            const water = this.parseNumber(row[config.waterProdCol]);
+            const gas = config.gasProdCol !== null ? this.parseNumber(row[config.gasProdCol]) : null;
+
+            if (oil !== null || water !== null || gas !== null) {
+                production.push({
+                    date: new Date(dateStr),
+                    oil: oil,
+                    water: water,
+                    gas: gas
+                });
+            }
+        }
+
+        production.sort((a, b) => a.date - b.date);
+        return production;
     },
 
     parseRunTicketsSheet(sheet) {

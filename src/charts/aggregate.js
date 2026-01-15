@@ -1,5 +1,5 @@
 import { appState, GAUGE_SHEETS } from '../config.js';
-import { hasUploadedData, getAggregateProductionTimeSeries } from '../data-aggregation.js';
+import { hasUploadedData, getBatteryProductionTimeSeries } from '../data-aggregation.js';
 import { showView } from '../views.js';
 
 export function showOilChartView(startDate = null, endDate = null) {
@@ -68,16 +68,16 @@ function renderAggregateChart(dataType, startDate = null, endDate = null) {
         appState.aggregateGasChart = null;
     }
 
-    const selectedWells = getSelectedWells(dataType);
+    const selectedBatteries = getSelectedBatteries(dataType);
     const aggregation = appState.chartState[dataType]?.aggregation || 'month';
-    appState.chartState[dataType].selectedWells = selectedWells;
+    appState.chartState[dataType].selectedBatteries = selectedBatteries;
 
-    const { data, dateRange } = getAggregateProductionTimeSeries(
+    const { data, dateRange } = getBatteryProductionTimeSeries(
         dataType,
         startDate,
         endDate,
         aggregation,
-        selectedWells
+        selectedBatteries
     );
 
     if (dataType === 'oil') {
@@ -97,7 +97,7 @@ function renderAggregateChart(dataType, startDate = null, endDate = null) {
     };
     const filterContainer = document.getElementById(filterContainerIds[dataType]);
     if (filterContainer && !filterContainer.querySelector('.explorer-battery')) {
-        populateWellsFilter(dataType);
+        populateBatteriesFilter(dataType);
     }
 
     initializeAggregationHandlers(dataType);
@@ -226,7 +226,7 @@ function initializeAggregateChartDatePickers(dataType, config, startDate, endDat
     newResetBtn.addEventListener('click', () => config.showFn(null, null));
 }
 
-function getSelectedWells(dataType) {
+function getSelectedBatteries(dataType) {
     const containerIds = {
         oil: 'oilChartBatteries',
         water: 'waterChartBatteries',
@@ -236,8 +236,8 @@ function getSelectedWells(dataType) {
     if (!container) return null;
 
     const selected = new Set();
-    container.querySelectorAll('.well-checkbox:checked').forEach(cb => {
-        if (cb.dataset.well) selected.add(cb.dataset.well);
+    container.querySelectorAll('.battery-checkbox:checked').forEach(cb => {
+        if (cb.dataset.battery) selected.add(cb.dataset.battery);
     });
 
     return selected.size > 0 ? selected : null;
@@ -280,7 +280,7 @@ function initializeAggregationHandlers(dataType) {
     });
 }
 
-function populateWellsFilter(dataType) {
+function populateBatteriesFilter(dataType) {
     const containerIds = {
         oil: 'oilChartBatteries',
         water: 'waterChartBatteries',
@@ -306,90 +306,38 @@ function populateWellsFilter(dataType) {
         const toggleBtn = document.getElementById(toggleBtnIds[dataType]);
         if (!toggleBtn) return;
 
-        const wellCheckboxes = container.querySelectorAll('.well-checkbox');
-        if (!wellCheckboxes.length) return;
-        const allChecked = Array.from(wellCheckboxes).every(cb => cb.checked);
+        const batteryCheckboxes = container.querySelectorAll('.battery-checkbox');
+        if (!batteryCheckboxes.length) return;
+        const allChecked = Array.from(batteryCheckboxes).every(cb => cb.checked);
         toggleBtn.textContent = allChecked ? 'Deselect All' : 'Select All';
     };
 
-    const syncBatteryCheckbox = (batterySection) => {
-        const batteryCheckbox = batterySection.querySelector('.battery-checkbox');
-        const wellCheckboxes = batterySection.querySelectorAll('.well-checkbox');
-        const checkedCount = batterySection.querySelectorAll('.well-checkbox:checked').length;
-        if (!batteryCheckbox || !wellCheckboxes.length) return;
-        batteryCheckbox.checked = checkedCount === wellCheckboxes.length;
-        batteryCheckbox.indeterminate = checkedCount > 0 && checkedCount < wellCheckboxes.length;
-    };
-
-    const selectedWells = appState.chartState[dataType]?.selectedWells || null;
+    const selectedBatteries = appState.chartState[dataType]?.selectedBatteries || null;
 
     GAUGE_SHEETS.forEach(sheetConfig => {
         const sheetData = appState.appData[sheetConfig.id];
-        if (!sheetData || !sheetData.wells || sheetData.wells.length === 0) return;
+        if (!sheetData) return;
 
-        const activeWells = sheetData.wells.filter(w => w.status !== 'inactive');
-        if (activeWells.length === 0) return;
+        // Check if battery has production data (either battery-level or wells)
+        const hasData = (sheetData.batteryProduction && sheetData.batteryProduction.length > 0) ||
+                       (sheetData.wells && sheetData.wells.length > 0);
+        if (!hasData) return;
 
-        const batterySection = document.createElement('div');
-        batterySection.className = 'explorer-battery';
+        const isSelected = !selectedBatteries || selectedBatteries.has(sheetConfig.id);
 
-        const batteryHeader = document.createElement('div');
-        batteryHeader.className = 'explorer-battery-header';
-        batteryHeader.innerHTML = `
-            <label class="explorer-checkbox">
-                <input type="checkbox" class="battery-checkbox" data-battery="${sheetConfig.id}">
-                <span class="checkmark"></span>
-            </label>
+        const batteryItem = document.createElement('label');
+        batteryItem.className = 'explorer-battery-simple explorer-checkbox';
+        batteryItem.innerHTML = `
+            <input type="checkbox" class="battery-checkbox" data-battery="${sheetConfig.id}" ${isSelected ? 'checked' : ''}>
+            <span class="checkmark"></span>
             <span class="battery-name">${sheetConfig.name}</span>
-            <span class="battery-count">${activeWells.length}</span>
         `;
+        container.appendChild(batteryItem);
 
-        const wellsList = document.createElement('div');
-        wellsList.className = 'explorer-wells';
-        wellsList.id = `wells-${dataType}-${sheetConfig.id}`;
-
-        activeWells.forEach(well => {
-            const isSelected = !selectedWells || selectedWells.has(well.id);
-            const wellItem = document.createElement('label');
-            wellItem.className = 'explorer-well explorer-checkbox';
-            wellItem.innerHTML = `
-                <input type="checkbox" class="well-checkbox" data-battery="${sheetConfig.id}" data-well="${well.id}" ${isSelected ? 'checked' : ''}>
-                <span class="checkmark"></span>
-                <span class="well-name">${well.name}</span>
-            `;
-            wellsList.appendChild(wellItem);
-        });
-
-        batterySection.appendChild(batteryHeader);
-        batterySection.appendChild(wellsList);
-        container.appendChild(batterySection);
-
-        batteryHeader.addEventListener('click', (e) => {
-            if (e.target.closest('input[type="checkbox"]') || e.target.closest('.explorer-checkbox')) {
-                return;
-            }
-            wellsList.classList.toggle('expanded');
-        });
-
-        const batteryCheckbox = batteryHeader.querySelector('.battery-checkbox');
-        syncBatteryCheckbox(batterySection);
-
+        const batteryCheckbox = batteryItem.querySelector('.battery-checkbox');
         batteryCheckbox.addEventListener('change', () => {
-            const checked = batteryCheckbox.checked;
-            wellsList.querySelectorAll('.well-checkbox').forEach(cb => {
-                cb.checked = checked;
-            });
-            batteryCheckbox.indeterminate = false;
             rerenderAggregateChart(dataType);
             updateToggleLabel();
-        });
-
-        wellsList.querySelectorAll('.well-checkbox').forEach(wellCb => {
-            wellCb.addEventListener('change', () => {
-                syncBatteryCheckbox(batterySection);
-                rerenderAggregateChart(dataType);
-                updateToggleLabel();
-            });
         });
     });
 
@@ -405,14 +353,11 @@ function populateWellsFilter(dataType) {
         toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
 
         newToggleBtn.addEventListener('click', () => {
-            const wellCheckboxes = container.querySelectorAll('.well-checkbox');
-            const allChecked = Array.from(wellCheckboxes).every(cb => cb.checked);
+            const batteryCheckboxes = container.querySelectorAll('.battery-checkbox');
+            const allChecked = Array.from(batteryCheckboxes).every(cb => cb.checked);
 
-            wellCheckboxes.forEach(cb => {
+            batteryCheckboxes.forEach(cb => {
                 cb.checked = !allChecked;
-            });
-            container.querySelectorAll('.explorer-battery').forEach(section => {
-                syncBatteryCheckbox(section);
             });
 
             newToggleBtn.textContent = allChecked ? 'Select All' : 'Deselect All';

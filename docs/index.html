@@ -12,8 +12,8 @@
     <!-- Chart.js for charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <script type="module" crossorigin src="/zarvona-energy-dashboard/assets/index-3yt5WVKa.js"></script>
-  <link rel="stylesheet" crossorigin href="/zarvona-energy-dashboard/assets/index-BBTXedzA.css">
+  <script type="module" crossorigin src="/zarvona-energy-dashboard/assets/index-FmfgbkCB.js"></script>
+  <link rel="stylesheet" crossorigin href="/zarvona-energy-dashboard/assets/index-EwqTH01l.css">
 </head>
 <body>
     <div class="app-container">
@@ -283,6 +283,14 @@
                                     <input type="date" id="productionEndDate">
                                 </label>
                                 <button class="btn-reset-dates" id="btnResetDates" title="Reset to full range">Reset</button>
+                                <button class="btn-download-csv" id="btnDownloadProduction" title="Download as CSV">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    <span class="btn-label">CSV</span>
+                                </button>
                             </div>
                         </div>
                         <div class="multi-chart-wrapper" id="productionChartsWrapper">
@@ -292,7 +300,17 @@
 
                     <!-- Well Test Table -->
                     <section class="card">
-                        <h3>Well Test Table</h3>
+                        <div class="card-header-editable">
+                            <h3>Well Test Table</h3>
+                            <button class="btn-download-csv" id="btnDownloadWellTests" title="Download as CSV">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                <span class="btn-label">CSV</span>
+                            </button>
+                        </div>
                         <div class="table-container">
                             <table id="wellTestTable">
                                 <thead>
@@ -392,11 +410,21 @@
                     <section class="card">
                         <div class="card-header-editable">
                             <h3>Pressure Readings</h3>
-                            <button class="btn-edit" data-edit="pressureReadings" title="Edit Pressure Readings">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                                </svg>
-                            </button>
+                            <div class="card-header-actions">
+                                <button class="btn-download-csv" id="btnDownloadPressure" title="Download as CSV">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    <span class="btn-label">CSV</span>
+                                </button>
+                                <button class="btn-edit" data-edit="pressureReadings" title="Edit Pressure Readings">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table id="pressureTable">
@@ -406,10 +434,19 @@
                                         <th>Casing PSI</th>
                                         <th>Tubing PSI</th>
                                         <th>Flowline PSI</th>
+                                        <th>Inj Vol</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
+                        </div>
+                    </section>
+
+                    <!-- Pressure Charts (shown if sufficient data) -->
+                    <section class="card pressure-charts-card" id="pressureChartsCard" style="display: none;">
+                        <h3>Pressure Trends</h3>
+                        <div class="pressure-charts-wrapper" id="pressureChartsWrapper">
+                            <!-- Charts dynamically inserted by JS -->
                         </div>
                     </section>
                 </div>
@@ -550,11 +587,11 @@
                         </aside>
                         <aside class="card chart-explorer" id="oilChartExplorer">
                             <div class="explorer-header">
-                                <h4>Filter Wells</h4>
+                                <h4>Filter Batteries</h4>
                                 <button class="btn-toggle-all" id="btnToggleAllOil">Select All</button>
                             </div>
                             <div class="explorer-batteries" id="oilChartBatteries">
-                                <!-- Dynamically populated with batteries and wells -->
+                                <!-- Dynamically populated with batteries -->
                             </div>
                         </aside>
                     </div>
@@ -609,11 +646,11 @@
                         </aside>
                         <aside class="card chart-explorer" id="waterChartExplorer">
                             <div class="explorer-header">
-                                <h4>Filter Wells</h4>
+                                <h4>Filter Batteries</h4>
                                 <button class="btn-toggle-all" id="btnToggleAllWater">Select All</button>
                             </div>
                             <div class="explorer-batteries" id="waterChartBatteries">
-                                <!-- Dynamically populated with batteries and wells -->
+                                <!-- Dynamically populated with batteries -->
                             </div>
                         </aside>
                     </div>
@@ -668,11 +705,11 @@
                         </aside>
                         <aside class="card chart-explorer" id="gasChartExplorer">
                             <div class="explorer-header">
-                                <h4>Filter Wells</h4>
+                                <h4>Filter Batteries</h4>
                                 <button class="btn-toggle-all" id="btnToggleAllGas">Select All</button>
                             </div>
                             <div class="explorer-batteries" id="gasChartBatteries">
-                                <!-- Dynamically populated with batteries and wells -->
+                                <!-- Dynamically populated with batteries -->
                             </div>
                         </aside>
                     </div>

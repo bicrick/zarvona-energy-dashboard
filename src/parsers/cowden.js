@@ -26,6 +26,14 @@ export const CowdenParser = {
             'angus': { csg: 42, tbg: 43, fl: 44, inj: 47 }
         }
     },
+    productionConfig: {
+        sheet: 'Cowden',
+        headerRowIndex: 6,
+        dateCol: 0,
+        oilProdCol: 24,
+        waterProdCol: 25,
+        gasProdCol: 26
+    },
 
     /**
      * Parse the uploaded workbook
@@ -39,7 +47,8 @@ export const CowdenParser = {
             lastUpdated: new Date().toISOString(),
             wells: [],
             runTickets: [],
-            rawRowCount: 0
+            rawRowCount: 0,
+            batteryProduction: []
         };
 
         // Parse Well Test sheet
@@ -52,6 +61,9 @@ export const CowdenParser = {
         if (result.wells.length > 0) {
             this.applyPressureReadings(workbook, result.wells);
         }
+
+        // Parse battery-level production
+        result.batteryProduction = this.parseBatteryProduction(workbook);
 
         // Parse Run Tickets sheet
         if (workbook.Sheets['Run Tickets']) {
@@ -142,6 +154,41 @@ export const CowdenParser = {
         });
 
         return { wells, rowCount };
+    },
+
+    parseBatteryProduction(workbook) {
+        const config = this.productionConfig;
+        if (!config) return [];
+        const sheet = workbook.Sheets[config.sheet];
+        if (!sheet) return [];
+
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        if (!data || data.length === 0) return [];
+
+        const production = [];
+
+        for (let i = config.headerRowIndex + 2; i < data.length; i++) {
+            const row = data[i];
+            if (!row) continue;
+            const dateStr = this.parseDate(row[config.dateCol]);
+            if (!dateStr) continue;
+
+            const oil = this.parseNumber(row[config.oilProdCol]);
+            const water = this.parseNumber(row[config.waterProdCol]);
+            const gas = config.gasProdCol !== null ? this.parseNumber(row[config.gasProdCol]) : null;
+
+            if (oil !== null || water !== null || gas !== null) {
+                production.push({
+                    date: new Date(dateStr),
+                    oil: oil,
+                    water: water,
+                    gas: gas
+                });
+            }
+        }
+
+        production.sort((a, b) => a.date - b.date);
+        return production;
     },
 
     applyPressureReadings(workbook, wells) {

@@ -67,6 +67,24 @@ export const SouthAndrewsParser = {
             }
         }
     ],
+    productionConfig: [
+        {
+            sheet: '36-4H',
+            headerRowIndex: 8,
+            dateCol: 0,
+            oilProdCol: 56,
+            waterProdCol: 57,
+            gasProdCol: 58
+        },
+        {
+            sheet: '37-6H',
+            headerRowIndex: 8,
+            dateCol: 0,
+            oilProdCol: 29,
+            waterProdCol: 30,
+            gasProdCol: 31
+        }
+    ],
 
     parse(workbook) {
         const result = {
@@ -75,7 +93,8 @@ export const SouthAndrewsParser = {
             lastUpdated: new Date().toISOString(),
             wells: [],
             runTickets: [],
-            rawRowCount: 0
+            rawRowCount: 0,
+            batteryProduction: []
         };
 
         // Parse both well test pages
@@ -93,6 +112,9 @@ export const SouthAndrewsParser = {
         if (result.wells.length > 0) {
             this.applyPressureReadings(workbook, result.wells);
         }
+
+        // Parse battery-level production from both sheets
+        result.batteryProduction = this.parseBatteryProduction(workbook);
 
         // Parse run tickets from multiple sheets
         ['36-4H Tickets', '37-6H Tickets', '36 6H Tickets'].forEach(sheetName => {
@@ -175,6 +197,50 @@ export const SouthAndrewsParser = {
         }
 
         return tickets;
+    },
+
+    parseBatteryProduction(workbook) {
+        const productionMap = new Map();
+
+        this.productionConfig.forEach(config => {
+            const sheet = workbook.Sheets[config.sheet];
+            if (!sheet) return;
+
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+            if (!data || data.length === 0) return;
+
+            for (let i = config.headerRowIndex + 2; i < data.length; i++) {
+                const row = data[i];
+                if (!row) continue;
+                const dateStr = this.parseDate(row[config.dateCol]);
+                if (!dateStr) continue;
+
+                const oil = this.parseNumber(row[config.oilProdCol]);
+                const water = this.parseNumber(row[config.waterProdCol]);
+                const gas = config.gasProdCol !== null ? this.parseNumber(row[config.gasProdCol]) : null;
+
+                if (oil !== null || water !== null || gas !== null) {
+                    const existing = productionMap.get(dateStr);
+                    if (existing) {
+                        // Combine data from both sheets for the same date
+                        existing.oil = (existing.oil || 0) + (oil || 0);
+                        existing.water = (existing.water || 0) + (water || 0);
+                        existing.gas = (existing.gas || 0) + (gas || 0);
+                    } else {
+                        productionMap.set(dateStr, {
+                            date: new Date(dateStr),
+                            oil: oil || 0,
+                            water: water || 0,
+                            gas: gas || 0
+                        });
+                    }
+                }
+            }
+        });
+
+        const production = Array.from(productionMap.values());
+        production.sort((a, b) => a.date - b.date);
+        return production;
     },
 
     applyPressureReadings(workbook, wells) {

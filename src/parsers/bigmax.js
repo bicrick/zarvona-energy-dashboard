@@ -31,7 +31,8 @@ export const BigMaxParser = {
             lastUpdated: new Date().toISOString(),
             wells: [],
             runTickets: [],
-            rawRowCount: 0
+            rawRowCount: 0,
+            batteryProduction: []  // No battery-level production for Big Max
         };
 
         if (workbook.Sheets['Well Test']) {
