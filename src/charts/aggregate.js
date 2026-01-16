@@ -259,8 +259,22 @@ function initializeAggregateChartDatePickers(dataType, config, startDate, endDat
         config.showFn(start, end);
     };
 
-    newStartInput.addEventListener('change', handleDateChange);
-    newEndInput.addEventListener('change', handleDateChange);
+    // Use blur instead of change to wait until user finishes typing
+    newStartInput.addEventListener('blur', handleDateChange);
+    newEndInput.addEventListener('blur', handleDateChange);
+    
+    // Also allow Enter key to trigger update
+    newStartInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.target.blur();
+        }
+    });
+    newEndInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.target.blur();
+        }
+    });
+    
     newResetBtn.addEventListener('click', () => config.showFn(null, null));
 }
 

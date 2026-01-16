@@ -209,8 +209,22 @@ function initializeDatePickers(startDate = null, endDate = null) {
     endInput.parentNode.replaceChild(newEndInput, endInput);
     resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
 
-    newStartInput.addEventListener('change', handleDateRangeChange);
-    newEndInput.addEventListener('change', handleDateRangeChange);
+    // Use blur instead of change to wait until user finishes typing
+    newStartInput.addEventListener('blur', handleDateRangeChange);
+    newEndInput.addEventListener('blur', handleDateRangeChange);
+    
+    // Also allow Enter key to trigger update
+    newStartInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.target.blur();
+        }
+    });
+    newEndInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.target.blur();
+        }
+    });
+    
     newResetBtn.addEventListener('click', handleDateRangeReset);
 }
 
