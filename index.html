@@ -446,7 +446,7 @@
                     <section class="card failure-card">
                         <div class="card-header-editable">
                             <h3>Failure History</h3>
-                            <button class="btn-edit" data-edit="failureHistory" title="Edit Failure History">
+                            <button class="btn-edit" id="btnAddFailure" title="Add Failure History">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                                 </svg>
@@ -456,12 +456,10 @@
                             <table id="failureTable">
                                 <thead>
                                     <tr>
-                                        <th>Date Down</th>
-                                        <th>Date Up</th>
-                                        <th>Downtime (days)</th>
-                                        <th>Oil Lost</th>
-                                        <th>Reason</th>
-                                        <th>Comments</th>
+                                        <th>Failure Date</th>
+                                        <th>File Name</th>
+                                        <th>Notes</th>
+                                        <th style="width: 60px;"></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -815,6 +813,76 @@
                                 <!-- Dynamically populated with batteries -->
                             </div>
                         </aside>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Failure History Modal -->
+            <div class="edit-modal" id="failureModal">
+                <div class="edit-modal-overlay" id="failureModalOverlay"></div>
+                <div class="edit-modal-content failure-modal">
+                    <div class="edit-modal-header">
+                        <h3>Add Failure History Entry</h3>
+                        <button class="btn-close-modal" id="btnCloseFailureModal">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="edit-modal-body">
+                        <form id="failureForm" class="failure-form">
+                            <div class="form-group">
+                                <label for="failureDate">Failure Date <span class="required">*</span></label>
+                                <input type="date" id="failureDate" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Excel File <span class="required">*</span></label>
+                                <input type="file" id="failureFileInput" accept=".xlsx,.xls" hidden>
+                                
+                                <div class="file-drop-zone" id="fileDropZone">
+                                    <div class="file-drop-icon">
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="17 8 12 3 7 8"></polyline>
+                                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                                        </svg>
+                                    </div>
+                                    <p><strong>Click to upload</strong> or drag and drop</p>
+                                    <p class="file-hint">Excel files only (.xlsx, .xls) - Max 10MB</p>
+                                </div>
+                                
+                                <div class="file-info" id="fileInfo" style="display: none;">
+                                    <div class="file-info-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                            <polyline points="13 2 13 9 20 9"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="file-info-details">
+                                        <span class="file-name" id="fileName"></span>
+                                        <span class="file-size" id="fileSize"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="failureNotes">Notes</label>
+                                <textarea id="failureNotes" rows="4" placeholder="Add any notes about the failure..."></textarea>
+                            </div>
+                            
+                            <div class="upload-progress" id="uploadProgress" style="display: none;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressBar"></div>
+                                </div>
+                                <span class="progress-text" id="progressText">0%</span>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="edit-modal-footer">
+                        <button type="button" class="btn-cancel" id="btnCancelFailure">Cancel</button>
+                        <button type="submit" class="btn-save" id="btnSubmitFailure" form="failureForm">Add Entry</button>
                     </div>
                 </div>
             </div>

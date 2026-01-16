@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { appState } from './config.js';
+import { deleteFailureFile } from './firebase-storage-service.js';
 
 // ============================================================================
 // OPTIMIZED DATA MODEL - SAVE FUNCTIONS
@@ -1067,6 +1068,143 @@ async function deleteBatchedSubcollection(db, collectionPath) {
         await batch.commit();
         batchesCommitted++;
         console.log(`  Committed final batch (${operationCount} deletes)`);
+    }
+}
+
+// ============================================================================
+// FAILURE HISTORY CRUD OPERATIONS
+// ============================================================================
+
+/**
+ * Add a new failure history entry to a well
+ * @param {string} sheetId - The gauge sheet ID
+ * @param {string} wellId - The well ID
+ * @param {object} failureData - The failure data including file metadata
+ * @param {string} failureData.id - Unique failure ID (UUID)
+ * @param {Date} failureData.failureDate - Failure date (required)
+ * @param {string} failureData.notes - Notes (optional)
+ * @param {string} failureData.fileName - Original file name
+ * @param {string} failureData.fileUrl - Firebase Storage download URL
+ * @param {string} failureData.filePath - Firebase Storage path
+ * @param {number} failureData.fileSize - File size in bytes
+ * @returns {Promise<boolean>} Success status
+ */
+export async function addFailureHistoryEntry(sheetId, wellId, failureData) {
+    try {
+        console.log(`Adding failure history entry for well ${wellId} in sheet ${sheetId}`);
+        
+        const wellRef = doc(db, `gaugeSheets/${sheetId}/wells`, wellId);
+        const wellDoc = await getDoc(wellRef);
+        
+        if (!wellDoc.exists()) {
+            console.error(`Well ${wellId} not found in sheet ${sheetId}`);
+            return false;
+        }
+        
+        const wellData = wellDoc.data();
+        const currentFailureHistory = wellData.failureHistory || [];
+        
+        // Create new failure entry with Timestamp
+        const newEntry = {
+            id: failureData.id,
+            failureDate: Timestamp.fromDate(new Date(failureData.failureDate)),
+            notes: failureData.notes || '',
+            fileName: failureData.fileName,
+            fileUrl: failureData.fileUrl,
+            filePath: failureData.filePath,
+            fileSize: failureData.fileSize,
+            uploadedAt: Timestamp.now()
+        };
+        
+        // Add to array
+        const updatedFailureHistory = [...currentFailureHistory, newEntry];
+        
+        // Sort by failure date (newest first)
+        updatedFailureHistory.sort((a, b) => {
+            const dateA = a.failureDate?.toDate?.() || new Date(a.failureDate);
+            const dateB = b.failureDate?.toDate?.() || new Date(b.failureDate);
+            return dateB - dateA;
+        });
+        
+        // Update Firestore
+        await setDoc(wellRef, {
+            failureHistory: updatedFailureHistory
+        }, { merge: true });
+        
+        // Update local state
+        const well = appState.appData[sheetId]?.wells.find(w => w.id === wellId);
+        if (well) {
+            well.failureHistory = updatedFailureHistory;
+        }
+        
+        console.log(`✓ Failure history entry added successfully`);
+        return true;
+    } catch (error) {
+        console.error('Error adding failure history entry:', error);
+        return false;
+    }
+}
+
+/**
+ * Delete a failure history entry from a well
+ * @param {string} sheetId - The gauge sheet ID
+ * @param {string} wellId - The well ID
+ * @param {string} failureId - The failure entry ID to delete
+ * @returns {Promise<boolean>} Success status
+ */
+export async function deleteFailureHistoryEntry(sheetId, wellId, failureId) {
+    try {
+        console.log(`Deleting failure history entry ${failureId} for well ${wellId}`);
+        
+        const wellRef = doc(db, `gaugeSheets/${sheetId}/wells`, wellId);
+        const wellDoc = await getDoc(wellRef);
+        
+        if (!wellDoc.exists()) {
+            console.error(`Well ${wellId} not found in sheet ${sheetId}`);
+            return false;
+        }
+        
+        const wellData = wellDoc.data();
+        const currentFailureHistory = wellData.failureHistory || [];
+        
+        // Find the entry to delete (to get file path)
+        const entryToDelete = currentFailureHistory.find(f => f.id === failureId);
+        
+        if (!entryToDelete) {
+            console.warn(`Failure entry ${failureId} not found`);
+            return false;
+        }
+        
+        // Delete file from Storage
+        if (entryToDelete.filePath) {
+            try {
+                await deleteFailureFile(entryToDelete.filePath);
+                console.log(`✓ Deleted file from storage: ${entryToDelete.filePath}`);
+            } catch (error) {
+                console.error('Error deleting file from storage:', error);
+                // Continue with Firestore deletion even if storage deletion fails
+            }
+        }
+        
+        // Remove from array
+        const updatedFailureHistory = currentFailureHistory.filter(f => f.id !== failureId);
+        
+        // Update Firestore
+        await setDoc(wellRef, {
+            failureHistory: updatedFailureHistory
+        }, { merge: true });
+        
+        // Update local state
+        const well = appState.appData[sheetId]?.wells.find(w => w.id === wellId);
+        if (well) {
+            well.failureHistory = updatedFailureHistory;
+        }
+        
+        console.log(`✓ Failure history entry deleted successfully`);
+        return true;
+    } catch (error) {
+        console.error('Error deleting failure history entry:', error);
+        return false;
     }
 }
 

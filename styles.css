@@ -3893,3 +3893,450 @@ tbody tr:nth-child(even) {
     height: 16px;
     flex-shrink: 0;
 }
+
+/* Failure History Styles */
+.failure-modal {
+    max-width: 600px;
+}
+
+.failure-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.failure-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.failure-form label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.failure-form .required {
+    color: #ef4444;
+}
+
+.failure-form input[type="date"],
+.failure-form textarea {
+    padding: 0.625rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.failure-form input[type="date"]:focus,
+.failure-form textarea:focus {
+    outline: none;
+    border-color: var(--text-muted);
+    background: var(--bg-tertiary);
+}
+
+.failure-form textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+/* File Drop Zone */
+.file-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.file-drop-zone:hover {
+    border-color: var(--text-muted);
+    background: var(--bg-tertiary);
+}
+
+.file-drop-zone.drag-over {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.file-drop-icon {
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+}
+
+.file-drop-zone p {
+    margin: 0.25rem 0;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.file-drop-zone .file-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* File Info Display */
+.file-info {
+    display: none;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.file-info-icon {
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.file-info-details {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.file-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-size {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Failure History Table Notes Column */
+#failureTable td:nth-child(3) {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+#failureTable td:nth-child(3):hover {
+    white-space: normal;
+    overflow: visible;
+    word-wrap: break-word;
+}
+
+/* File Download Link */
+.file-download-link {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.file-download-link:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+/* Delete Button */
+.btn-delete-failure {
+    padding: 0.375rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-delete-failure:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+}
+
+.btn-delete-failure svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Upload Progress in Modal */
+.failure-form .upload-progress {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.failure-form .upload-progress .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.failure-form .upload-progress .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.failure-form .upload-progress .progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* Enhanced Failure Modal Styling */
+.edit-modal-content.failure-modal {
+    max-width: 550px;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Modal Header Enhancement */
+.failure-modal .edit-modal-header {
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+}
+
+.failure-modal .edit-modal-header h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-muted) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Modal Body Enhancement */
+.failure-modal .edit-modal-body {
+    padding: 1.5rem 1.75rem;
+    overflow-y: auto;
+    max-height: calc(85vh - 140px);
+}
+
+/* Form Group Spacing */
+.failure-modal .failure-form {
+    gap: 1.25rem;
+}
+
+/* Better Input Styling */
+.failure-form input[type="date"] {
+    cursor: pointer;
+}
+
+.failure-form input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.5);
+}
+
+.failure-form input[type="date"]:hover::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+}
+
+/* Enhanced File Drop Zone */
+.file-drop-zone {
+    position: relative;
+    overflow: hidden;
+}
+
+.file-drop-zone::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.file-drop-zone:hover::before,
+.file-drop-zone.drag-over::before {
+    opacity: 0.1;
+}
+
+/* Enhanced File Info Display */
+.file-info {
+    border-left: 3px solid #3b82f6;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, var(--bg-secondary) 100%);
+}
+
+.file-info-icon svg {
+    color: #3b82f6;
+}
+
+/* Textarea Enhancement */
+.failure-form textarea {
+    font-family: var(--font-mono);
+}
+
+.failure-form textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* Enhanced Progress Bar */
+.failure-form .upload-progress {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.failure-form .upload-progress .progress-bar {
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.failure-form .upload-progress .progress-fill {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+/* Modal Footer Enhancement */
+.failure-modal .edit-modal-footer {
+    padding: 1rem 1.75rem;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.failure-modal .btn-cancel {
+    padding: 0.625rem 1.25rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.failure-modal .btn-cancel:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.failure-modal .btn-save {
+    padding: 0.625rem 1.5rem;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border: none;
+    color: white;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.failure-modal .btn-save:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+}
+
+.failure-modal .btn-save:active {
+    transform: translateY(0);
+}
+
+.failure-modal .btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Close Button Enhancement */
+.failure-modal .btn-close-modal {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.failure-modal .btn-close-modal:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+    transform: rotate(90deg);
+}
+
+/* Label Enhancement */
+.failure-form label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.failure-form .required {
+    font-size: 1rem;
+}
+
+/* Focus States */
+.failure-form input[type="date"]:focus,
+.failure-form textarea:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .edit-modal-content.failure-modal {
+        max-width: 95%;
+        max-height: 95vh;
+    }
+    
+    .failure-modal .edit-modal-body {
+        padding: 1rem 1.25rem;
+    }
+    
+    .failure-modal .edit-modal-footer {
+        padding: 0.75rem 1.25rem;
+        flex-direction: column-reverse;
+    }
+    
+    .failure-modal .btn-cancel,
+    .failure-modal .btn-save {
+        width: 100%;
+    }
+}

@@ -6,6 +6,7 @@ import { initializeUploadHandlers, initializeBulkUploadHandlers } from './upload
 import { initializeDashboardHandlers, setOnCacheCleared } from './dashboard.js';
 import { updateWelcomeStats, showView, showWellView } from './views.js';
 import { setOnEditSave } from './edit-modal.js';
+import { initializeFailureModalHandlers } from './failure-modal.js';
 import { initializeAuthObserver, showLoginView, showApp, initializeLoginHandlers, signOut } from './auth.js';
 import { auth } from './firebase.js';
 import { appState } from './config.js';
@@ -26,6 +27,7 @@ async function initializeApp() {
     initializeUploadHandlers();
     initializeBulkUploadHandlers();
     initializeDashboardHandlers();
+    initializeFailureModalHandlers();
     initializeLogoHandler();
     initializeHamburgerToggle();
     initializeThemeToggle();

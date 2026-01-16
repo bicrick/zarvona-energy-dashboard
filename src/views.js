@@ -217,6 +217,14 @@ function renderBatteryWellsGrid(sheetId) {
         const latestTest = well.latestTest || (well.wellTests && well.wellTests[0]);
         const latestOil = latestTest && latestTest.oil !== undefined ? Math.round(latestTest.oil * 100) / 100 : null;
         const latestGas = latestTest && latestTest.gas !== undefined && latestTest.gas !== null ? Math.round(Math.max(0, latestTest.gas) * 100) / 100 : null;
+        const latestWater = latestTest && latestTest.water !== undefined ? Math.round(latestTest.water * 100) / 100 : null;
+
+        // Show water instead of gas when gas is 0 or null
+        const showWater = latestGas === null || latestGas === 0;
+        const secondStatLabel = showWater ? 'Latest Water' : 'Latest Gas';
+        const secondStatValue = showWater 
+            ? (latestWater !== null ? latestWater + ' bbl' : '-')
+            : (latestGas !== null ? latestGas + ' mcf' : '-');
 
         return `
             <div class="well-card" data-well-id="${well.id}" data-sheet-id="${sheetId}">
@@ -227,8 +235,8 @@ function renderBatteryWellsGrid(sheetId) {
                         <span class="well-stat-value">${latestOil !== null ? latestOil + ' bbl' : '-'}</span>
                     </div>
                     <div class="well-stat">
-                        <span class="well-stat-label">Latest Gas</span>
-                        <span class="well-stat-value">${latestGas !== null ? latestGas + ' mcf' : '-'}</span>
+                        <span class="well-stat-label">${secondStatLabel}</span>
+                        <span class="well-stat-value">${secondStatValue}</span>
                     </div>
                 </div>
             </div>
@@ -434,6 +442,14 @@ function renderWellsGrid(sheetId) {
         const latestTest = well.latestTest || (well.wellTests && well.wellTests[0]);
         const latestOil = latestTest && latestTest.oil !== undefined ? Math.round(latestTest.oil * 100) / 100 : null;
         const latestGas = latestTest && latestTest.gas !== undefined && latestTest.gas !== null ? Math.round(Math.max(0, latestTest.gas) * 100) / 100 : null;
+        const latestWater = latestTest && latestTest.water !== undefined ? Math.round(latestTest.water * 100) / 100 : null;
+
+        // Show water instead of gas when gas is 0 or null
+        const showWater = latestGas === null || latestGas === 0;
+        const secondStatLabel = showWater ? 'Latest Water' : 'Latest Gas';
+        const secondStatValue = showWater 
+            ? (latestWater !== null ? latestWater + ' bbl' : '-')
+            : (latestGas !== null ? latestGas + ' mcf' : '-');
 
         return `
             <div class="well-card" data-well-id="${well.id}" data-sheet-id="${sheetId}">
@@ -444,8 +460,8 @@ function renderWellsGrid(sheetId) {
                         <span class="well-stat-value">${latestOil !== null ? latestOil + ' bbl' : '-'}</span>
                     </div>
                     <div class="well-stat">
-                        <span class="well-stat-label">Latest Gas</span>
-                        <span class="well-stat-value">${latestGas !== null ? latestGas + ' mcf' : '-'}</span>
+                        <span class="well-stat-label">${secondStatLabel}</span>
+                        <span class="well-stat-value">${secondStatValue}</span>
                     </div>
                 </div>
             </div>
@@ -510,20 +526,85 @@ function renderFailureHistory(failures) {
     const tbody = document.querySelector('#failureTable tbody');
 
     if (!failures || failures.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6b7280;">No failure history</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #6b7280;">No failure history</td></tr>';
         return;
     }
 
-    tbody.innerHTML = failures.map(f => `
-        <tr>
-            <td>${formatDate(f.dateDown)}</td>
-            <td>${formatDate(f.dateUp)}</td>
-            <td>${f.downtime || '-'}</td>
-            <td>${f.oil || '-'}</td>
-            <td>${f.reason || '-'}</td>
-            <td>${f.comments || '-'}</td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = failures.map(f => {
+        const failureDate = f.failureDate?.toDate?.() || new Date(f.failureDate);
+        const fileUrl = f.fileUrl || '#';
+        const fileName = f.fileName || 'Unknown File';
+        const notes = f.notes || '-';
+        
+        return `
+            <tr>
+                <td>${formatDate(failureDate)}</td>
+                <td>
+                    <a href="${fileUrl}" 
+                       target="_blank" 
+                       download="${fileName}"
+                       class="file-download-link"
+                       title="Download ${fileName}">
+                        ${fileName}
+                    </a>
+                </td>
+                <td>${notes}</td>
+                <td>
+                    <button class="btn-icon btn-delete-failure" 
+                            data-failure-id="${f.id}"
+                            title="Delete entry">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4h9.334Z" 
+                                  stroke="currentColor" 
+                                  stroke-width="1.5" 
+                                  stroke-linecap="round" 
+                                  stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    // Add event listeners for delete buttons
+    tbody.querySelectorAll('.btn-delete-failure').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const failureId = btn.dataset.failureId;
+            handleDeleteFailureEntry(failureId);
+        });
+    });
+}
+
+// Handler for deleting failure entries
+async function handleDeleteFailureEntry(failureId) {
+    if (!confirm('Are you sure you want to delete this failure history entry? This will also delete the associated file.')) {
+        return;
+    }
+    
+    const { deleteFailureHistoryEntry } = await import('./firestore-storage.js');
+    
+    const sheetId = appState.currentSheet;
+    const wellId = appState.currentWell;
+    
+    const success = await deleteFailureHistoryEntry(sheetId, wellId, failureId);
+    
+    if (success) {
+        // Reload well details to refresh the display
+        const { loadWellDetails } = await import('./firestore-storage.js');
+        await loadWellDetails(sheetId, wellId);
+        
+        // Re-render the failure history table
+        const sheetData = appState.appData[sheetId];
+        const well = sheetData.wells.find(w => w.id === wellId);
+        if (well) {
+            renderFailureHistory(well.failureHistory || []);
+        }
+        
+        alert('Failure history entry deleted successfully');
+    } else {
+        alert('Failed to delete failure history entry. Please try again.');
+    }
 }
 
 function renderActionList(elementId, items) {
