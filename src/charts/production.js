@@ -1,5 +1,18 @@
 import { appState } from '../config.js';
 
+// Custom tooltip positioner to follow cursor
+const cursorTooltipPositioner = function(elements, eventPosition) {
+    return {
+        x: eventPosition.x,
+        y: eventPosition.y
+    };
+};
+
+// Register custom tooltip positioner
+if (typeof Chart !== 'undefined' && Chart.Tooltip) {
+    Chart.Tooltip.positioners.cursor = cursorTooltipPositioner;
+}
+
 export function renderProductionCharts(well, startDate = null, endDate = null) {
     const wrapper = document.getElementById('productionChartsWrapper');
 
@@ -93,9 +106,16 @@ export function renderProductionCharts(well, startDate = null, endDate = null) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        enabled: true,
+                        position: 'cursor',
                         backgroundColor: '#282c33',
                         titleColor: '#e8e9eb',
                         bodyColor: '#e8e9eb',
@@ -130,7 +150,29 @@ export function renderProductionCharts(well, startDate = null, endDate = null) {
                         ticks: { color: '#9ea3ab' }
                     }
                 }
-            }
+            },
+            plugins: [{
+                id: 'crosshair',
+                afterDatasetsDraw: (chart) => {
+                    if (chart.tooltip?._active?.length) {
+                        const ctx = chart.ctx;
+                        const activePoint = chart.tooltip._active[0];
+                        const x = activePoint.element.x;
+                        const topY = chart.scales.y.top;
+                        const bottomY = chart.scales.y.bottom;
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(x, topY);
+                        ctx.lineTo(x, bottomY);
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = '#9ea3ab';
+                        ctx.setLineDash([5, 5]);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }]
         });
     });
 }
