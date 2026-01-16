@@ -46,7 +46,7 @@ export function initializeNavigation() {
     const homeSection = createNavSection('Home', 'home-section', [
         { id: 'nav-dashboard', label: 'Operations Dashboard', icon: 'dashboard', action: () => { showView('welcome'); updateWelcomeStats(); } },
         { id: 'nav-oil-chart', label: 'Oil Production', icon: 'oil', action: () => showOilChartView() },
-        { id: 'nav-water-chart', label: 'Water Consumption', icon: 'water', action: () => showWaterChartView() },
+        { id: 'nav-water-chart', label: 'Water Production', icon: 'water', action: () => showWaterChartView() },
         { id: 'nav-gas-chart', label: 'Gas Production', icon: 'gas', action: () => showGasChartView() }
     ]);
     navTree.appendChild(homeSection);

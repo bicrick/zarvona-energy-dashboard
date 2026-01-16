@@ -879,7 +879,7 @@ body {
 }
 
 .well-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
 }
 
 .well-grid .production-card {
@@ -887,11 +887,11 @@ body {
 }
 
 .well-grid .failure-card {
-    grid-column: span 3;
+    grid-column: span 1;
 }
 
 .well-grid .pressure-charts-card {
-    grid-column: span 3;
+    grid-column: span 2;
 }
 
 .battery-grid {
@@ -1408,7 +1408,7 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 100px;
+    min-height: 150px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border-color);
     overflow: hidden;
@@ -1576,6 +1576,45 @@ body {
     background: var(--text-muted);
 }
 
+/* Pressure Table - Scrollable */
+#pressureTable {
+    display: block;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#pressureTable thead,
+#pressureTable tbody,
+#pressureTable tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+#pressureTable thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+#pressureTable::-webkit-scrollbar {
+    width: 6px;
+}
+
+#pressureTable::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+#pressureTable::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+#pressureTable::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -1705,7 +1744,7 @@ tbody tr:nth-child(even) {
     }
     
     .well-grid .failure-card {
-        grid-column: span 2;
+        grid-column: span 1;
     }
     
     .well-grid .pressure-charts-card {

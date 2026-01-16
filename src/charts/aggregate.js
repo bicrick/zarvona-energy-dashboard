@@ -70,7 +70,7 @@ function renderAggregateChart(dataType, startDate = null, endDate = null) {
         },
         water: {
             canvasId: 'aggregateWaterChart',
-            label: 'Water Consumption (BBL)',
+            label: 'Water Production (BBL)',
             unit: 'BBL',
             color: '#3b82f6',
             dateRangeVar: 'waterChartDateRange',
