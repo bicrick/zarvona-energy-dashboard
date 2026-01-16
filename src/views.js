@@ -4,7 +4,7 @@ import { renderProductionCharts } from './charts/production.js';
 import { initializeEditHandlers } from './edit-modal.js';
 import { renderDashboard } from './dashboard.js';
 import { hasUploadedData, getBatteryStats } from './data-aggregation.js';
-import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData } from './firestore-storage.js';
+import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData, loadSheetAggregateData } from './firestore-storage.js';
 
 // CSV Download utility functions
 function downloadCSV(data, headers, filename) {
@@ -137,6 +137,11 @@ export async function showBatteryView(sheetId) {
         if (sheetData && sheetData._metadataLoaded) {
             await loadWellsList(sheetId);
         }
+    }
+    
+    // Load aggregate production data if not loaded (needed for battery stats)
+    if (sheetData && sheetData._metadataLoaded && !sheetData._aggregateLoaded) {
+        await loadSheetAggregateData(sheetId);
     }
 
     // Render battery stats

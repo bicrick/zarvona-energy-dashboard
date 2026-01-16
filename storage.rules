@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Rules for failure history files
+    match /failures/{sheetId}/{wellId}/{failureId} {
+      // Allow read access for authenticated users
+      allow read: if isAuthenticated();
+      
+      // Allow write access for authenticated users with file size and type restrictions
+      allow write: if isAuthenticated()
+                   && request.resource.size < 10 * 1024 * 1024 // 10MB max file size
+                   && (request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                       || request.resource.contentType.matches('application/vnd.ms-excel')
+                       || request.resource.contentType.matches('application/octet-stream'));
+      
+      // Allow delete access for authenticated users
+      allow delete: if isAuthenticated();
+    }
+  }
+}
