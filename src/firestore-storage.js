@@ -941,7 +941,14 @@ export async function clearFirestoreData(progressCallback = null) {
             const sheetDoc = gaugeSheetSnapshot.docs[i];
             const sheetData = sheetDoc.data();
             logProgress(`Deleting ${i + 1}/${totalSheets}: ${sheetData.name || sheetDoc.id}`);
-            await deleteSheetFromFirestore(sheetDoc.id, logProgress);
+            
+            try {
+                await deleteSheetFromFirestore(sheetDoc.id, logProgress);
+            } catch (error) {
+                logProgress(`⚠ Error deleting ${sheetData.name || sheetDoc.id}: ${error.message}`);
+                console.error(`Error deleting sheet ${sheetDoc.id}:`, error);
+                // Continue with next sheet instead of stopping
+            }
         }
         
         logProgress('Clearing local state...');
@@ -977,20 +984,22 @@ async function deleteSheetFromFirestore(sheetId, progressCallback = null) {
         
         logProgress(`Deleting ${totalWells} wells and their data...`);
         
+        let wellsProcessed = 0;
         for (const wellDoc of wellsSnapshot.docs) {
-            // Delete production subcollection
-            const productionColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellDoc.id}/production`);
-            const productionSnapshot = await getDocs(productionColl);
-            for (const prodDoc of productionSnapshot.docs) {
-                await deleteDoc(prodDoc.ref);
-            }
+            wellsProcessed++;
+            logProgress(`Deleting well ${wellsProcessed}/${totalWells}: ${wellDoc.id}`);
             
-            // Delete well tests subcollection
-            const wellTestsColl = collection(db, `gaugeSheets/${sheetId}/wells/${wellDoc.id}/wellTests`);
-            const wellTestsSnapshot = await getDocs(wellTestsColl);
-            for (const testDoc of wellTestsSnapshot.docs) {
-                await deleteDoc(testDoc.ref);
-            }
+            // Delete production subcollection in batches
+            await deleteBatchedSubcollection(
+                db, 
+                `gaugeSheets/${sheetId}/wells/${wellDoc.id}/production`
+            );
+            
+            // Delete well tests subcollection in batches
+            await deleteBatchedSubcollection(
+                db, 
+                `gaugeSheets/${sheetId}/wells/${wellDoc.id}/wellTests`
+            );
             
             // Delete well document
             await deleteDoc(wellDoc.ref);
@@ -998,28 +1007,65 @@ async function deleteSheetFromFirestore(sheetId, progressCallback = null) {
         
         logProgress(`Deleting battery production and run tickets...`);
         
-        // Delete battery production
-        const batteryProdColl = collection(db, `gaugeSheets/${sheetId}/batteryProduction`);
-        const batteryProdSnapshot = await getDocs(batteryProdColl);
-        for (const prodDoc of batteryProdSnapshot.docs) {
-            await deleteDoc(prodDoc.ref);
-        }
+        // Delete battery production in batches
+        await deleteBatchedSubcollection(db, `gaugeSheets/${sheetId}/batteryProduction`);
         
-        // Delete run tickets
-        const runTicketsColl = collection(db, `gaugeSheets/${sheetId}/runTickets`);
-        const runTicketsSnapshot = await getDocs(runTicketsColl);
-        for (const ticketDoc of runTicketsSnapshot.docs) {
-            await deleteDoc(ticketDoc.ref);
-        }
+        // Delete run tickets in batches
+        await deleteBatchedSubcollection(db, `gaugeSheets/${sheetId}/runTickets`);
         
         // Delete sheet document
         const sheetRef = doc(db, 'gaugeSheets', sheetId);
         await deleteDoc(sheetRef);
         
+        logProgress(`✓ Deleted sheet ${sheetId}`);
         return true;
     } catch (error) {
         console.error(`Error deleting sheet ${sheetId}:`, error);
-        return false;
+        throw error; // Re-throw to let caller handle it
+    }
+}
+
+/**
+ * Helper function to delete a subcollection in batches
+ * @param {object} db - Firestore database instance
+ * @param {string} collectionPath - Path to the collection to delete
+ */
+async function deleteBatchedSubcollection(db, collectionPath) {
+    const coll = collection(db, collectionPath);
+    const snapshot = await getDocs(coll);
+    
+    if (snapshot.empty) {
+        return;
+    }
+    
+    // Delete in batches of 500 (Firestore limit)
+    const batchSize = 500;
+    let batch = writeBatch(db);
+    let operationCount = 0;
+    let batchesCommitted = 0;
+    
+    for (const docSnapshot of snapshot.docs) {
+        batch.delete(docSnapshot.ref);
+        operationCount++;
+        
+        // Commit batch when it reaches 500 operations
+        if (operationCount >= batchSize) {
+            await batch.commit();
+            batchesCommitted++;
+            console.log(`  Committed batch ${batchesCommitted} (${batchSize} deletes)`);
+            batch = writeBatch(db);
+            operationCount = 0;
+            
+            // Small delay to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+    
+    // Commit remaining operations
+    if (operationCount > 0) {
+        await batch.commit();
+        batchesCommitted++;
+        console.log(`  Committed final batch (${operationCount} deletes)`);
     }
 }
 
