@@ -10,9 +10,10 @@ export const PolarisParser = {
     expectedFileName: 'Polaris Gauge Sheet.xlsx',
 
     // Wells from Well Test (4-column spacing, different from standard)
+    // Note: Well Test sheet does NOT have gas columns - col 3 is "24HR Monthly Avg Oil", not gas
     wells: [
-        { id: 'polaris-1', name: 'Polaris #1', oilCol: 1, waterCol: 2, gasCol: 3, status: 'active' },
-        { id: 'polaris-2', name: 'Polaris #2', oilCol: 5, waterCol: 6, gasCol: 7, status: 'inactive' }  // Inactive per user
+        { id: 'polaris-1', name: 'Polaris #1', oilCol: 1, waterCol: 2, gasCol: null, status: 'active' },
+        { id: 'polaris-2', name: 'Polaris #2', oilCol: 5, waterCol: 6, gasCol: null, status: 'inactive' }  // Inactive per user
     ],
     productionConfig: {
         sheet: 'Polaris 1',
@@ -20,7 +21,8 @@ export const PolarisParser = {
         dateCol: 0,
         oilProdCol: 16,
         waterProdCol: 17,
-        gasProdCol: null  // No gas production for Polaris
+        gasProdCol: 14,  // Gas meter column (cumulative MCF)
+        gasMeterType: 'cumulative'  // Calculate daily production from meter differences
     },
 
     parse(workbook) {
@@ -115,6 +117,8 @@ export const PolarisParser = {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // First pass: collect all data with meter readings
+        const rawData = [];
         for (let i = config.headerRowIndex + 2; i < data.length; i++) {
             const row = data[i];
             if (!row) continue;
@@ -127,19 +131,49 @@ export const PolarisParser = {
 
             const oil = this.parseNumber(row[config.oilProdCol]);
             const water = this.parseNumber(row[config.waterProdCol]);
-            const gas = config.gasProdCol !== null ? this.parseNumber(row[config.gasProdCol]) : null;
+            const gasMeter = config.gasProdCol !== null ? this.parseNumber(row[config.gasProdCol]) : null;
 
-            if (oil !== null || water !== null || gas !== null) {
+            rawData.push({
+                date: new Date(dateStr),
+                oil: oil,
+                water: water,
+                gasMeter: gasMeter
+            });
+        }
+
+        // Sort by date
+        rawData.sort((a, b) => a.date - b.date);
+
+        // Second pass: calculate gas production from meter differences
+        for (let i = 0; i < rawData.length; i++) {
+            const current = rawData[i];
+            let gas = null;
+
+            // If we have a cumulative gas meter, calculate daily production
+            if (config.gasMeterType === 'cumulative' && current.gasMeter !== null && i > 0) {
+                const previous = rawData[i - 1];
+                if (previous.gasMeter !== null) {
+                    const diff = current.gasMeter - previous.gasMeter;
+                    // Only use positive differences (ignore meter resets or no change)
+                    if (diff > 0) {
+                        gas = diff;
+                    }
+                }
+            } else if (config.gasMeterType !== 'cumulative') {
+                // Direct daily production value
+                gas = current.gasMeter;
+            }
+
+            if (current.oil !== null || current.water !== null || gas !== null) {
                 production.push({
-                    date: new Date(dateStr),
-                    oil: oil,
-                    water: water,
+                    date: current.date,
+                    oil: current.oil,
+                    water: current.water,
                     gas: gas
                 });
             }
         }
 
-        production.sort((a, b) => a.date - b.date);
         return production;
     },
 
