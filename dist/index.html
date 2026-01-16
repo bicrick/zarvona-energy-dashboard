@@ -18,12 +18,21 @@
     <!-- Chart.js for charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <script type="module" crossorigin src="/assets/index-C3x1jk8d.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CoJH0Dw6.css">
+  <script type="module" crossorigin src="/assets/index-PaCImSIF.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DETxsQUe.css">
 </head>
 <body>
+    <!-- Auth Loading Splash Screen -->
+    <div id="authSplash" class="auth-splash">
+        <div class="splash-content">
+            <h1 class="splash-logo">Zarvona Energy</h1>
+            <div class="splash-spinner"></div>
+            <p class="splash-text">Loading...</p>
+        </div>
+    </div>
+
     <!-- Login View -->
-    <div id="loginView" class="login-view">
+    <div id="loginView" class="login-view" style="display: none;">
         <div class="login-container" id="loginContainer">
             <div class="login-header">
                 <h1>Zarvona Energy</h1>
@@ -37,9 +46,25 @@
                 <div class="form-group">
                     <label for="loginPassword">Password</label>
                     <input type="password" id="loginPassword" required autocomplete="current-password">
+                    <a href="#" id="forgotPassword" class="forgot-password-link">Forgot password?</a>
                 </div>
                 <div id="loginError" class="error-message"></div>
+                <div id="loginSuccess" class="success-message"></div>
                 <button type="submit" class="btn-login">Sign In</button>
+                
+                <div class="login-divider">
+                    <span>OR</span>
+                </div>
+                
+                <button type="button" id="microsoftSignIn" class="btn-microsoft">
+                    <svg class="microsoft-icon" viewBox="0 0 23 23" fill="none">
+                        <rect width="11" height="11" fill="#F25022"/>
+                        <rect x="12" width="11" height="11" fill="#7FBA00"/>
+                        <rect y="12" width="11" height="11" fill="#00A4EF"/>
+                        <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
+                    </svg>
+                    Sign in with Microsoft
+                </button>
             </form>
             <div class="login-footer">
                 <p>Don't have an account? <a href="#" id="showSignup">Create one</a></p>
@@ -51,14 +76,22 @@
                 <h1>Zarvona Energy</h1>
                 <p>Create Account</p>
             </div>
+            <div class="auth-notice">
+                Must have a Zarvona Energy email address to register
+            </div>
             <form id="signupForm" class="login-form">
                 <div class="form-group">
-                    <label for="signupEmail">Email</label>
-                    <input type="email" id="signupEmail" required autocomplete="email">
+                    <label for="signupUsername">Email</label>
+                    <div class="input-with-suffix">
+                        <input type="text" id="signupUsername" required autocomplete="username">
+                        <span class="input-separator"></span>
+                        <span class="input-suffix">@zarvonaenergy.com</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="signupPassword">Password</label>
                     <input type="password" id="signupPassword" required autocomplete="new-password" minlength="6">
+                    <small class="form-hint">Do not use your work password - create a new one for this app</small>
                 </div>
                 <div class="form-group">
                     <label for="signupConfirmPassword">Confirm Password</label>
@@ -73,18 +106,23 @@
         </div>
     </div>
 
-    <div class="app-container">
+    <div class="app-container" style="display: none;">
         <!-- User Menu (floating in top right) -->
         <div class="user-menu-container">
             <button class="user-avatar-btn" id="userAvatarBtn" title="Account">
-                <svg class="avatar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <img class="user-avatar-img" id="userAvatarImg" style="display: none;" alt="Profile">
+                <svg class="avatar-icon" id="avatarIconSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
             </button>
             <div class="user-dropdown" id="userDropdown">
                 <div class="user-dropdown-header">
-                    <div class="user-email" id="userEmail">user@example.com</div>
+                    <img class="user-dropdown-avatar" id="userDropdownAvatar" style="display: none;" alt="Profile">
+                    <div class="user-dropdown-info">
+                        <div class="user-display-name" id="userDisplayName" style="display: none;"></div>
+                        <div class="user-email" id="userEmail">user@example.com</div>
+                    </div>
                 </div>
                 <button class="user-dropdown-item" id="btnSignOutDropdown">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -125,6 +125,13 @@ body {
     transition: stroke 0.2s ease;
 }
 
+.user-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
 /* User Dropdown */
 .user-dropdown {
     position: absolute;
@@ -134,7 +141,8 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 200px;
+    min-width: 280px;
+    max-width: 320px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
@@ -151,13 +159,40 @@ body {
 .user-dropdown-header {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-dropdown-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.user-dropdown-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-display-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .user-email {
     font-size: 0.875rem;
     color: var(--text-secondary);
     font-family: var(--font-mono);
-    word-break: break-all;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .user-dropdown-item {
@@ -3362,8 +3397,9 @@ tbody tr:nth-child(even) {
     flex: 1;
     border: none;
     background: transparent;
-    padding: 0.75rem 0 0.75rem 1rem;
+    padding: 0.75rem 0 0.75rem 0.75rem;
     outline: none;
+    min-width: 0;
 }
 
 .input-with-suffix input:focus {
@@ -3379,9 +3415,9 @@ tbody tr:nth-child(even) {
 }
 
 .input-suffix {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.75rem;
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     font-weight: 500;
     white-space: nowrap;
     user-select: none;
@@ -3457,6 +3493,81 @@ tbody tr:nth-child(even) {
     background: var(--border-color);
     cursor: not-allowed;
     transform: none;
+}
+
+.login-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.5rem 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.login-divider span {
+    padding: 0 1rem;
+}
+
+.btn-microsoft {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    background: white;
+    color: #5e5e5e;
+    border: 1px solid #8c8c8c;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.btn-microsoft:hover {
+    background: #f3f3f3;
+    border-color: #5e5e5e;
+}
+
+.btn-microsoft:active {
+    transform: translateY(1px);
+}
+
+.btn-microsoft:disabled {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.microsoft-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.btn-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 .login-footer {

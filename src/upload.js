@@ -73,39 +73,52 @@ async function processUploadedFile(file) {
 
     try {
         const arrayBuffer = await file.arrayBuffer();
-        progressFill.style.width = '30%';
+        progressFill.style.width = '5%';
         progressText.textContent = 'Parsing Excel...';
 
         const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-        progressFill.style.width = '60%';
+        progressFill.style.width = '10%';
         progressText.textContent = 'Extracting data...';
 
         const data = parser.parse(workbook);
-        progressFill.style.width = '70%';
+        progressFill.style.width = '15%';
         progressText.textContent = 'Checking for manual edits...';
 
         // Fetch existing data from Firestore to preserve manual edits
         const existingData = await fetchSheetFromFirestore(appState.currentSheet);
         
-        progressFill.style.width = '80%';
+        progressFill.style.width = '20%';
         progressText.textContent = 'Merging data...';
         
         // Merge new Excel data with existing Firestore data (preserves manual edits)
         const mergedData = mergeSheetData(existingData, data);
         appState.appData[appState.currentSheet] = mergedData;
         
-        progressFill.style.width = '90%';
-        progressText.textContent = 'Saving...';
+        progressFill.style.width = '25%';
+        progressText.textContent = 'Saving to cloud...';
         
-        // Save to Firestore (full data)
-        await saveSheetToFirestore(appState.currentSheet, mergedData, true);
+        // Save to Firestore (full data) with progress callback
+        await saveSheetToFirestore(appState.currentSheet, mergedData, true, (message, percent) => {
+            // Map the save progress (0-90%) to our overall progress (25-90%)
+            const overallPercent = 25 + Math.floor((percent / 90) * 65);
+            progressFill.style.width = `${overallPercent}%`;
+            progressText.textContent = message;
+        });
 
-        progressFill.style.width = '95%';
-        progressText.textContent = 'Refreshing data...';
+        progressFill.style.width = '92%';
+        progressText.textContent = 'Refreshing navigation data...';
         
         // Force a full data refresh from Firestore to ensure local state is up to date
-        await loadNavigationData();
-        await loadDashboardData();
+        await loadNavigationData((message) => {
+            progressText.textContent = message;
+        });
+        
+        progressFill.style.width = '96%';
+        progressText.textContent = 'Refreshing dashboard data...';
+        
+        await loadDashboardData((message) => {
+            progressText.textContent = message;
+        });
 
         progressFill.style.width = '100%';
         progressText.textContent = 'Complete!';
@@ -231,17 +244,36 @@ async function processBulkUpload(files) {
     }
 
     // Save all sheets to Firestore (full data)
-    progressText.textContent = 'Saving to cloud...';
-    for (const sheetId in appState.appData) {
-        await saveSheetToFirestore(sheetId, appState.appData[sheetId], true);
+    const sheetsToSave = Object.keys(appState.appData);
+    const totalSheets = sheetsToSave.length;
+    
+    for (let i = 0; i < totalSheets; i++) {
+        const sheetId = sheetsToSave[i];
+        const sheetPercent = Math.floor((i / totalSheets) * 100);
+        
+        await saveSheetToFirestore(sheetId, appState.appData[sheetId], true, (message, percent) => {
+            // Map the save progress for each sheet
+            const basePercent = Math.floor((i / totalSheets) * 85);
+            const sheetProgress = Math.floor((percent / 90) * (85 / totalSheets));
+            progressFill.style.width = `${basePercent + sheetProgress}%`;
+            progressText.textContent = `[Sheet ${i + 1}/${totalSheets}] ${message}`;
+        });
     }
 
-    progressFill.style.width = '95%';
-    progressText.textContent = 'Refreshing data...';
+    progressFill.style.width = '90%';
+    progressText.textContent = 'Refreshing navigation data...';
     
     // Force a full data refresh from Firestore to ensure local state is up to date
-    await loadNavigationData();
-    await loadDashboardData();
+    await loadNavigationData((message) => {
+        progressText.textContent = message;
+    });
+    
+    progressFill.style.width = '95%';
+    progressText.textContent = 'Refreshing dashboard data...';
+    
+    await loadDashboardData((message) => {
+        progressText.textContent = message;
+    });
 
     progressFill.style.width = '100%';
     progressText.textContent = 'Complete!';

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oil Well Dashboard</title>
+    <title>Zarvona Dashboard</title>
     <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="16x16" href="/src/assets/favicons/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/src/assets/favicons/favicon-32x32.png">
@@ -34,7 +34,7 @@
         <div class="login-container" id="loginContainer">
             <div class="login-header">
                 <h1>Zarvona Energy</h1>
-                <p>Oil Well Dashboard</p>
+                <p>Zarvona Dashboard</p>
             </div>
             <form id="loginForm" class="login-form">
                 <div class="form-group">
@@ -49,6 +49,20 @@
                 <div id="loginError" class="error-message"></div>
                 <div id="loginSuccess" class="success-message"></div>
                 <button type="submit" class="btn-login">Sign In</button>
+                
+                <div class="login-divider">
+                    <span>OR</span>
+                </div>
+                
+                <button type="button" id="microsoftSignIn" class="btn-microsoft">
+                    <svg class="microsoft-icon" viewBox="0 0 23 23" fill="none">
+                        <rect width="11" height="11" fill="#F25022"/>
+                        <rect x="12" width="11" height="11" fill="#7FBA00"/>
+                        <rect y="12" width="11" height="11" fill="#00A4EF"/>
+                        <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
+                    </svg>
+                    Sign in with Microsoft
+                </button>
             </form>
             <div class="login-footer">
                 <p>Don't have an account? <a href="#" id="showSignup">Create one</a></p>
@@ -94,14 +108,19 @@
         <!-- User Menu (floating in top right) -->
         <div class="user-menu-container">
             <button class="user-avatar-btn" id="userAvatarBtn" title="Account">
-                <svg class="avatar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <img class="user-avatar-img" id="userAvatarImg" style="display: none;" alt="Profile">
+                <svg class="avatar-icon" id="avatarIconSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
             </button>
             <div class="user-dropdown" id="userDropdown">
                 <div class="user-dropdown-header">
-                    <div class="user-email" id="userEmail">user@example.com</div>
+                    <img class="user-dropdown-avatar" id="userDropdownAvatar" style="display: none;" alt="Profile">
+                    <div class="user-dropdown-info">
+                        <div class="user-display-name" id="userDisplayName" style="display: none;"></div>
+                        <div class="user-email" id="userEmail">user@example.com</div>
+                    </div>
                 </div>
                 <button class="user-dropdown-item" id="btnSignOutDropdown">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

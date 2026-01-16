@@ -69,14 +69,43 @@ function initializeUserMenu() {
     const userAvatarBtn = document.getElementById('userAvatarBtn');
     const userDropdown = document.getElementById('userDropdown');
     const userEmail = document.getElementById('userEmail');
+    const userDisplayName = document.getElementById('userDisplayName');
+    const userAvatarImg = document.getElementById('userAvatarImg');
+    const avatarIconSvg = document.getElementById('avatarIconSvg');
+    const userDropdownAvatar = document.getElementById('userDropdownAvatar');
     const btnSignOutDropdown = document.getElementById('btnSignOutDropdown');
     
     if (!userAvatarBtn || !userDropdown) return;
     
-    // Get current user and display email
+    // Get current user and display information
     const user = auth.currentUser;
-    if (user && userEmail) {
-        userEmail.textContent = user.email;
+    if (user) {
+        // Display email
+        if (userEmail) {
+            userEmail.textContent = user.email || 'No email';
+        }
+        
+        // Display name (if available from Microsoft/OAuth)
+        if (user.displayName && userDisplayName) {
+            userDisplayName.textContent = user.displayName;
+            userDisplayName.style.display = 'block';
+        }
+        
+        // Display profile picture (if available from Microsoft/OAuth)
+        if (user.photoURL) {
+            // Show profile picture in avatar button
+            if (userAvatarImg && avatarIconSvg) {
+                userAvatarImg.src = user.photoURL;
+                userAvatarImg.style.display = 'block';
+                avatarIconSvg.style.display = 'none';
+            }
+            
+            // Show profile picture in dropdown
+            if (userDropdownAvatar) {
+                userDropdownAvatar.src = user.photoURL;
+                userDropdownAvatar.style.display = 'block';
+            }
+        }
     }
     
     // Toggle dropdown on avatar click

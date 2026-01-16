@@ -3,7 +3,9 @@ import {
     signOut as firebaseSignOut,
     onAuthStateChanged,
     createUserWithEmailAndPassword,
-    sendPasswordResetEmail
+    sendPasswordResetEmail,
+    signInWithPopup,
+    OAuthProvider
 } from 'firebase/auth';
 import { auth } from './firebase.js';
 
@@ -36,6 +38,89 @@ export async function signIn(email, password) {
         return { success: true, user: userCredential.user };
     } catch (error) {
         console.error('Sign in error:', error);
+        return { success: false, error: getErrorMessage(error) };
+    }
+}
+
+/**
+ * Sign in with Microsoft
+ * @returns {Promise<{success: boolean, user?: User, error?: string}>}
+ */
+export async function signInWithMicrosoft() {
+    try {
+        const provider = new OAuthProvider('microsoft.com');
+        
+        // Request profile information (includes name and photo)
+        provider.addScope('profile');
+        provider.addScope('email');
+        provider.addScope('User.Read');
+        
+        // Optional: Request additional scopes if needed
+        // provider.addScope('mail.read');
+        // provider.addScope('calendars.read');
+        
+        // Set custom parameters for Microsoft login
+        provider.setCustomParameters({
+            // Force account selection even if user is already signed in
+            prompt: 'select_account',
+            // Optional: Restrict to a specific tenant (your organization)
+            // tenant: 'YOUR_TENANT_ID'
+        });
+        
+        const result = await signInWithPopup(auth, provider);
+        
+        // Get the Microsoft access token
+        const credential = OAuthProvider.credentialFromResult(result);
+        const accessToken = credential?.accessToken;
+        
+        // Note: Domain validation is disabled for Microsoft sign-in to allow personal accounts
+        // If you want to restrict to work accounts only, uncomment the code below:
+        /*
+        const email = result.user.email;
+        if (email && !isValidDomain(email)) {
+            // Sign out the user if they don't have the correct domain
+            await firebaseSignOut(auth);
+            return { 
+                success: false, 
+                error: `Only ${ALLOWED_DOMAIN} email addresses are allowed.` 
+            };
+        }
+        */
+        
+        // If we have an access token and no photo URL, try to fetch from Microsoft Graph
+        if (accessToken && !result.user.photoURL) {
+            try {
+                const graphResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                if (graphResponse.ok) {
+                    const blob = await graphResponse.blob();
+                    const photoURL = URL.createObjectURL(blob);
+                    
+                    // Note: This creates a local URL. In production, you might want to upload
+                    // this to Firebase Storage and update the user profile
+                    console.log('Fetched profile photo from Microsoft Graph');
+                }
+            } catch (photoError) {
+                console.log('Could not fetch profile photo:', photoError);
+                // Continue without photo - not a critical error
+            }
+        }
+        
+        return { success: true, user: result.user };
+    } catch (error) {
+        console.error('Microsoft sign in error:', error);
+        
+        // Handle specific OAuth errors
+        if (error.code === 'auth/popup-closed-by-user') {
+            return { success: false, error: 'Sign-in cancelled.' };
+        } else if (error.code === 'auth/popup-blocked') {
+            return { success: false, error: 'Pop-up blocked. Please allow pop-ups for this site.' };
+        }
+        
         return { success: false, error: getErrorMessage(error) };
     }
 }
@@ -225,10 +310,37 @@ export function initializeLoginHandlers() {
     const loginContainer = document.getElementById('loginContainer');
     const signupContainer = document.getElementById('signupContainer');
 
+    // Microsoft sign-in button handler
+    const microsoftSignInBtn = document.getElementById('microsoftSignIn');
+    if (microsoftSignInBtn) {
+        microsoftSignInBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('loginError');
+            const successDiv = document.getElementById('loginSuccess');
+            
+            // Clear previous messages
+            errorDiv.textContent = '';
+            successDiv.textContent = '';
+            
+            // Disable button during sign-in
+            microsoftSignInBtn.disabled = true;
+            const originalText = microsoftSignInBtn.innerHTML;
+            microsoftSignInBtn.innerHTML = '<span class="btn-spinner"></span> Signing in...';
+            
+            const result = await signInWithMicrosoft();
+            
+            if (!result.success) {
+                errorDiv.textContent = result.error;
+                microsoftSignInBtn.disabled = false;
+                microsoftSignInBtn.innerHTML = originalText;
+            }
+            // If successful, auth state observer will handle showing the app
+        });
+    }
+
     // Login form submission
     if (loginForm) {
-        const handleLogin = async (e) => {
-            e.preventDefault();
+        const handleLogin = async () => {
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
@@ -251,18 +363,25 @@ export function initializeLoginHandlers() {
             // If successful, auth state observer will handle showing the app
         };
         
-        loginForm.addEventListener('submit', handleLogin);
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleLogin();
+        });
         
-        // Add Enter key handler for password field
+        // Add Enter key handler for both email and password fields
+        const emailInput = document.getElementById('loginEmail');
         const passwordInput = document.getElementById('loginPassword');
-        if (passwordInput) {
-            passwordInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    loginForm.dispatchEvent(new Event('submit'));
-                }
-            });
-        }
+        
+        [emailInput, passwordInput].forEach(input => {
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLogin();
+                    }
+                });
+            }
+        });
     }
 
     // Forgot password handler
@@ -299,8 +418,7 @@ export function initializeLoginHandlers() {
 
     // Signup form submission
     if (signupForm) {
-        const handleSignup = async (e) => {
-            e.preventDefault();
+        const handleSignup = async () => {
             const username = document.getElementById('signupUsername').value.trim();
             const password = document.getElementById('signupPassword').value;
             const confirmPassword = document.getElementById('signupConfirmPassword').value;
@@ -338,18 +456,26 @@ export function initializeLoginHandlers() {
             // If successful, auth state observer will handle showing the app
         };
         
-        signupForm.addEventListener('submit', handleSignup);
+        signupForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleSignup();
+        });
         
-        // Add Enter key handler for confirm password field
+        // Add Enter key handler for all input fields
+        const usernameInput = document.getElementById('signupUsername');
+        const passwordInput = document.getElementById('signupPassword');
         const confirmPasswordInput = document.getElementById('signupConfirmPassword');
-        if (confirmPasswordInput) {
-            confirmPasswordInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    signupForm.dispatchEvent(new Event('submit'));
-                }
-            });
-        }
+        
+        [usernameInput, passwordInput, confirmPasswordInput].forEach(input => {
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSignup();
+                    }
+                });
+            }
+        });
     }
 
     // Toggle between login and signup

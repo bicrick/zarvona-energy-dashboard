@@ -25,11 +25,17 @@ import { appState } from './config.js';
  * @param {string} sheetId - The gauge sheet ID
  * @param {object} sheetData - The sheet data to save
  * @param {boolean} fullReplace - If true, replace all data. If false, only update new/changed data
+ * @param {Function} progressCallback - Optional callback to report progress (message, percent)
  * @returns {Promise<boolean>} Success status
  */
-export async function saveSheetToFirestore(sheetId, sheetData, fullReplace = false) {
+export async function saveSheetToFirestore(sheetId, sheetData, fullReplace = false, progressCallback = null) {
     try {
-        console.log(`Saving sheet ${sheetId} to Firestore with optimized structure...`);
+        const logProgress = (message, percent) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message, percent);
+        };
+        
+        logProgress(`Saving sheet ${sheetId} to Firestore with optimized structure...`, 0);
         
         // Calculate wellList for fast navigation
         const wellList = (sheetData.wells || []).map(w => ({
@@ -37,6 +43,8 @@ export async function saveSheetToFirestore(sheetId, sheetData, fullReplace = fal
             name: w.name,
             status: w.status || 'active'
         })).filter(w => w.status !== 'inactive');
+        
+        logProgress('Saving gauge sheet metadata...', 5);
         
         // Save gauge sheet document with wellList
         const sheetRef = doc(db, 'gaugeSheets', sheetId);
@@ -51,22 +59,30 @@ export async function saveSheetToFirestore(sheetId, sheetData, fullReplace = fal
         
         // Save wells with optimized fields
         if (sheetData.wells && sheetData.wells.length > 0) {
-            for (const well of sheetData.wells) {
+            const totalWells = sheetData.wells.length;
+            for (let i = 0; i < totalWells; i++) {
+                const well = sheetData.wells[i];
+                const wellPercent = 10 + Math.floor((i / totalWells) * 60);
+                logProgress(`Saving well ${i + 1}/${totalWells}: ${well.name}`, wellPercent);
                 await saveWellToFirestore(sheetId, well, fullReplace);
             }
         }
+        
+        logProgress('Saving battery production data...', 70);
         
         // Save battery production (incremental)
         if (sheetData.batteryProduction && sheetData.batteryProduction.length > 0) {
             await saveBatteryProductionToFirestore(sheetId, sheetData.batteryProduction, fullReplace);
         }
         
+        logProgress('Saving run tickets...', 80);
+        
         // Save run tickets (incremental)
         if (sheetData.runTickets && sheetData.runTickets.length > 0) {
             await saveRunTicketsToFirestore(sheetId, sheetData.runTickets, fullReplace);
         }
         
-        console.log(`Sheet ${sheetId} saved successfully`);
+        logProgress(`Sheet ${sheetId} saved successfully`, 90);
         return true;
     } catch (error) {
         console.error(`Error saving sheet ${sheetId}:`, error);
@@ -366,23 +382,34 @@ async function saveRunTicketsToFirestore(sheetId, runTickets, fullReplace = fals
 /**
  * Load ALL data at startup - SIMPLE AND FAST
  * Loads all battery metadata and all well summary data in one go
+ * @param {Function} progressCallback - Optional callback to report progress (message)
  * @returns {Promise<boolean>} Success status
  */
-export async function loadNavigationData() {
+export async function loadNavigationData(progressCallback = null) {
     try {
-        console.log('Loading all data...');
+        const logProgress = (message) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message);
+        };
+        
+        logProgress('Loading all data...');
         const startTime = performance.now();
         
+        logProgress('Fetching gauge sheets...');
         const gaugeSheetsColl = collection(db, 'gaugeSheets');
         const gaugeSheetSnapshot = await getDocs(gaugeSheetsColl);
         
         const newAppData = {};
         let totalWells = 0;
+        const totalSheets = gaugeSheetSnapshot.docs.length;
         
         // Load each battery and ALL its wells
-        for (const sheetDoc of gaugeSheetSnapshot.docs) {
+        for (let i = 0; i < totalSheets; i++) {
+            const sheetDoc = gaugeSheetSnapshot.docs[i];
             const sheetData = sheetDoc.data();
             const sheetId = sheetDoc.id;
+            
+            logProgress(`Loading battery ${i + 1}/${totalSheets}: ${sheetData.name}...`);
             
             newAppData[sheetId] = {
                 id: sheetData.id,
@@ -425,6 +452,8 @@ export async function loadNavigationData() {
             });
         }
         
+        logProgress('Updating app state...');
+        
         // Update app state
         appState.appData = newAppData;
         appState.loadedSheets = Object.keys(newAppData);
@@ -439,7 +468,7 @@ export async function loadNavigationData() {
         }
         
         const endTime = performance.now();
-        console.log(`✓ Loaded ${Object.keys(newAppData).length} batteries, ${totalWells} wells in ${Math.round(endTime - startTime)}ms`);
+        logProgress(`✓ Loaded ${Object.keys(newAppData).length} batteries, ${totalWells} wells in ${Math.round(endTime - startTime)}ms`);
         return true;
     } catch (error) {
         console.error('Error loading data:', error);
@@ -450,11 +479,17 @@ export async function loadNavigationData() {
 
 /**
  * Prepare dashboard data from already-loaded wells (NO QUERIES NEEDED)
+ * @param {Function} progressCallback - Optional callback to report progress (message)
  * @returns {Promise<boolean>} Success status
  */
-export async function loadDashboardData() {
+export async function loadDashboardData(progressCallback = null) {
     try {
-        console.log('Preparing dashboard data from loaded wells...');
+        const logProgress = (message) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message);
+        };
+        
+        logProgress('Preparing dashboard data from loaded wells...');
         
         // Everything is already loaded! Just organize it for the dashboard
         const allWells = [];
@@ -466,11 +501,15 @@ export async function loadDashboardData() {
             }
         });
         
+        logProgress('Calculating top producers...');
+        
         // Sort for top producers (in JavaScript - it's instant)
         const topProducers = allWells
             .filter(w => w.status !== 'inactive' && w.latestProduction)
             .sort((a, b) => (b.latestProduction?.oil || 0) - (a.latestProduction?.oil || 0))
             .slice(0, 10);
+        
+        logProgress('Finding recent tests...');
         
         // Sort for recent tests
         const recentTests = allWells
@@ -482,6 +521,8 @@ export async function loadDashboardData() {
             })
             .slice(0, 10);
         
+        logProgress('Filtering action items...');
+        
         // Filter for action items
         const actionItems = allWells.filter(w => w.hasActionItems);
         
@@ -491,7 +532,7 @@ export async function loadDashboardData() {
             actionItems
         };
         
-        console.log(`✓ Dashboard prepared: ${topProducers.length} top producers, ${recentTests.length} recent tests, ${actionItems.length} action items`);
+        logProgress(`✓ Dashboard prepared: ${topProducers.length} top producers, ${recentTests.length} recent tests, ${actionItems.length} action items`);
         return true;
     } catch (error) {
         console.error('Error preparing dashboard data:', error);
