@@ -1215,3 +1215,140 @@ export async function loadDataFromFirestore() {
     await loadDashboardData();
     return true;
 }
+
+// ============================================================================
+// CHEMICAL PROGRAMS - SAVE/LOAD FUNCTIONS
+// ============================================================================
+
+/**
+ * Save chemical program data from Master Chemical Sheet
+ * @param {array} chemicalPrograms - Array of chemical program objects from parser
+ * @param {Function} progressCallback - Optional callback to report progress (message, percent)
+ * @returns {Promise<boolean>} Success status
+ */
+export async function saveChemicalProgramData(chemicalPrograms, progressCallback = null) {
+    try {
+        const logProgress = (message, percent) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message, percent);
+        };
+        
+        logProgress('Saving chemical program data...', 0);
+        
+        if (!chemicalPrograms || chemicalPrograms.length === 0) {
+            logProgress('No chemical programs to save', 100);
+            return true;
+        }
+        
+        const batch = writeBatch(db);
+        const total = chemicalPrograms.length;
+        let processed = 0;
+        
+        for (const program of chemicalPrograms) {
+            // Use normalized well name as document ID for easier lookups
+            const normalizedName = program.wellName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+            
+            const programRef = doc(db, 'chemicalPrograms', normalizedName);
+            
+            batch.set(programRef, {
+                wellName: program.wellName,
+                batteryName: program.batteryName,
+                testData: program.testData || {},
+                truckTreating: program.truckTreating || {},
+                continuous: program.continuous || {},
+                lastUpdated: Timestamp.now()
+            });
+            
+            processed++;
+            const percent = Math.floor((processed / total) * 90);
+            
+            // Commit in batches of 500 (Firestore limit)
+            if (processed % 500 === 0) {
+                logProgress(`Saving chemical programs ${processed}/${total}...`, percent);
+                await batch.commit();
+            }
+        }
+        
+        // Commit remaining
+        if (processed % 500 !== 0) {
+            await batch.commit();
+        }
+        
+        logProgress(`Saved ${total} chemical programs successfully`, 100);
+        return true;
+    } catch (error) {
+        console.error('Error saving chemical program data:', error);
+        return false;
+    }
+}
+
+/**
+ * Load all chemical program data at startup
+ * @param {Function} progressCallback - Optional callback to report progress (message)
+ * @returns {Promise<object>} Object containing chemical programs keyed by normalized name
+ */
+export async function loadChemicalProgramData(progressCallback = null) {
+    try {
+        const logProgress = (message) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message);
+        };
+        
+        logProgress('Loading chemical program data...');
+        
+        const chemicalProgramsColl = collection(db, 'chemicalPrograms');
+        const snapshot = await getDocs(chemicalProgramsColl);
+        
+        const programs = {};
+        
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            programs[doc.id] = {
+                wellName: data.wellName,
+                batteryName: data.batteryName,
+                testData: data.testData || {},
+                truckTreating: data.truckTreating || {},
+                continuous: data.continuous || {},
+                lastUpdated: data.lastUpdated?.toDate?.() || data.lastUpdated
+            };
+        });
+        
+        logProgress(`✓ Loaded ${Object.keys(programs).length} chemical programs`);
+        
+        // Update appState
+        appState.chemicalPrograms = programs;
+        
+        return programs;
+    } catch (error) {
+        console.error('Error loading chemical program data:', error);
+        appState.chemicalPrograms = {};
+        return {};
+    }
+}
+
+/**
+ * Get chemical program for a specific well (with fuzzy matching)
+ * @param {string} wellName - The well name to search for
+ * @returns {object|null} Chemical program data or null if not found
+ */
+export function getChemicalProgramForWell(wellName) {
+    if (!wellName || !appState.chemicalPrograms) {
+        return null;
+    }
+    
+    // Import normalizeWellName from chemical-matcher
+    // Try exact match first (normalized)
+    const normalized = wellName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    
+    if (appState.chemicalPrograms[normalized]) {
+        return appState.chemicalPrograms[normalized];
+    }
+    
+    // Try fuzzy matching if exact match fails
+    // This will be handled by the chemical-matcher module in the calling code
+    return null;
+}

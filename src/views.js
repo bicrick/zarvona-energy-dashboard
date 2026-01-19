@@ -5,6 +5,7 @@ import { initializeEditHandlers } from './edit-modal.js';
 import { renderDashboard } from './dashboard.js';
 import { hasUploadedData, getBatteryStats } from './data-aggregation.js';
 import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData, loadSheetAggregateData } from './firestore-storage.js';
+import { findChemicalProgramMatch } from './chemical-matcher.js';
 
 // CSV Download utility functions
 function downloadCSV(data, headers, filename) {
@@ -285,10 +286,13 @@ export async function showWellView(sheetId, wellId) {
         if (!well) return;
     }
 
+    // Try to match chemical program from Master Chemical Sheet
+    const matchedChemicalProgram = findChemicalProgramMatch(well.name, appState.chemicalPrograms);
+    
     // Render all well data
     renderProductionCharts(well);
     renderWellTestTable(well.wellTests || []);
-    renderChemicalProgram(well.chemicalProgram || {});
+    renderChemicalProgram(well.chemicalProgram || {}, matchedChemicalProgram, well.name);
     renderFailureHistory(well.failureHistory || []);
     renderActionList('wellActionList', well.actionItems || []);
     renderPressureTable(well.pressureReadings || []);
@@ -510,16 +514,144 @@ function renderWellTestTable(wellTests) {
     }).join('');
 }
 
-function renderChemicalProgram(program) {
-    const cont = program.continuous || {};
-    const truck = program.truckTreat || {};
-
-    document.getElementById('chemContRate').textContent = cont.rate || '-';
-    document.getElementById('chemContChems').textContent = cont.chems || '-';
-    document.getElementById('chemContPPM').textContent = cont.ppm || '-';
-    document.getElementById('chemTruckRate').textContent = truck.rate || '-';
-    document.getElementById('chemTruckChems').textContent = truck.chems || '-';
-    document.getElementById('chemTruckPPM').textContent = truck.ppm || '-';
+function renderChemicalProgram(manualProgram, matchedProgram, wellName) {
+    const tableContainer = document.querySelector('#chemicalTable').parentElement;
+    
+    // Determine which data source to use
+    let dataSource = 'none';
+    let programData = null;
+    let lastUpdated = null;
+    
+    if (matchedProgram) {
+        // Prefer Master Chemical Sheet data if available
+        dataSource = 'master';
+        programData = matchedProgram;
+        lastUpdated = matchedProgram.lastUpdated;
+    } else if (manualProgram && (manualProgram.continuous || manualProgram.truckTreat)) {
+        // Fall back to manual data
+        dataSource = 'manual';
+        programData = {
+            truckTreating: manualProgram.truckTreat || {},
+            continuous: manualProgram.continuous || {}
+        };
+    }
+    
+    // If no data at all, show empty state
+    if (dataSource === 'none') {
+        tableContainer.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                <p>No chemical program data available</p>
+                <p style="font-size: 0.875rem; margin-top: 0.5rem;">Upload the Master Chemical Sheet or add data manually</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Build dynamic table based on available data
+    let tableHTML = '<table id="chemicalTable">';
+    
+    // Handle Master Chemical Sheet data (dynamic chemicals)
+    if (dataSource === 'master') {
+        const truckChems = Object.entries(programData.truckTreating || {});
+        const continuousChems = Object.entries(programData.continuous || {});
+        
+        // Show data source indicator
+        const updateInfo = lastUpdated ? ` (Updated: ${formatDate(lastUpdated)})` : '';
+        tableHTML += `
+            <thead>
+                <tr>
+                    <th colspan="2" style="font-size: 0.875rem; color: #9ea3ab; font-weight: normal; text-align: center;">
+                        From Master Chemical Sheet${updateInfo}
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        // Truck Treating section
+        if (truckChems.length > 0) {
+            tableHTML += `
+                <tr>
+                    <td colspan="2" style="font-weight: 600; background-color: #282c33; padding: 0.75rem;">
+                        TRUCK TREATING (gal/month)
+                    </td>
+                </tr>
+            `;
+            
+            truckChems.forEach(([chemName, value]) => {
+                const formattedValue = typeof value === 'number' ? value.toFixed(2) : value;
+                tableHTML += `
+                    <tr>
+                        <td style="padding-left: 1.5rem;">${chemName}</td>
+                        <td style="text-align: right;">${formattedValue}</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        // Continuous section
+        if (continuousChems.length > 0) {
+            tableHTML += `
+                <tr>
+                    <td colspan="2" style="font-weight: 600; background-color: #282c33; padding: 0.75rem; padding-top: ${truckChems.length > 0 ? '1rem' : '0.75rem'};">
+                        CONTINUOUS (gal/month)
+                    </td>
+                </tr>
+            `;
+            
+            continuousChems.forEach(([chemName, value]) => {
+                const formattedValue = typeof value === 'number' ? value.toFixed(2) : value;
+                tableHTML += `
+                    <tr>
+                        <td style="padding-left: 1.5rem;">${chemName}</td>
+                        <td style="text-align: right;">${formattedValue}</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        tableHTML += '</tbody>';
+    } 
+    // Handle manual data (old format)
+    else if (dataSource === 'manual') {
+        const cont = programData.continuous || {};
+        const truck = programData.truckTreating || {};
+        
+        tableHTML += `
+            <thead>
+                <tr>
+                    <th colspan="2" style="font-size: 0.875rem; color: #9ea3ab; font-weight: normal; text-align: center;">
+                        Manually Entered
+                    </th>
+                </tr>
+                <tr>
+                    <th></th>
+                    <th>Continuous</th>
+                    <th>Truck Treat</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Rate (gal/month)</td>
+                    <td>${cont.rate || '-'}</td>
+                    <td>${truck.rate || '-'}</td>
+                </tr>
+                <tr>
+                    <td>Chems Used</td>
+                    <td>${cont.chems || '-'}</td>
+                    <td>${truck.chems || '-'}</td>
+                </tr>
+                <tr>
+                    <td>PPM</td>
+                    <td>${cont.ppm || '-'}</td>
+                    <td>${truck.ppm || '-'}</td>
+                </tr>
+            </tbody>
+        `;
+    }
+    
+    tableHTML += '</table>';
+    tableContainer.innerHTML = tableHTML;
 }
 
 function renderFailureHistory(failures) {

@@ -7,6 +7,7 @@ import { ShusaParser } from './shusa.js';
 import { MWWemacParser } from './mwwemac.js';
 import { Unit130Parser } from './unit130.js';
 import { ULS35HParser } from './uls35h.js';
+import { MasterChemicalParser } from './master-chemical.js';
 
 export const PARSERS = {
     CowdenParser,
@@ -17,7 +18,8 @@ export const PARSERS = {
     ShusaParser,
     MWWemacParser,
     Unit130Parser,
-    ULS35HParser
+    ULS35HParser,
+    MasterChemicalParser
 };
 
 export {
@@ -29,5 +31,6 @@ export {
     ShusaParser,
     MWWemacParser,
     Unit130Parser,
-    ULS35HParser
+    ULS35HParser,
+    MasterChemicalParser
 };

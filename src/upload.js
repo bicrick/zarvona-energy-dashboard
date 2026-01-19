@@ -1,5 +1,5 @@
 import { GAUGE_SHEETS, appState } from './config.js';
-import { saveSheetToFirestore, fetchSheetFromFirestore, loadNavigationData, loadDashboardData } from './firestore-storage.js';
+import { saveSheetToFirestore, fetchSheetFromFirestore, loadNavigationData, loadDashboardData, saveChemicalProgramData, loadChemicalProgramData } from './firestore-storage.js';
 import { refreshNavigation } from './navigation.js';
 import { showGaugeSheetView } from './views.js';
 import { PARSERS } from './parsers/index.js';
@@ -221,16 +221,34 @@ async function processBulkUpload(files) {
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
             const data = parser.parse(workbook);
 
-            // Fetch existing data from Firestore to preserve manual edits
-            const existingData = await fetchSheetFromFirestore(sheetConfig.id);
-            const mergedData = mergeSheetData(existingData, data);
-            appState.appData[sheetConfig.id] = mergedData;
+            // Check if this is a chemical sheet
+            if (sheetConfig.isChemicalSheet) {
+                // Handle chemical sheet differently
+                await saveChemicalProgramData(data.chemicalPrograms, (message, percent) => {
+                    progressText.textContent = message;
+                });
+                
+                // Reload chemical programs into appState
+                await loadChemicalProgramData();
+                
+                resultItems.push({
+                    name: sheetConfig.name,
+                    status: 'success',
+                    detail: `Chemical programs updated for ${data.chemicalPrograms.length} wells`
+                });
+            } else {
+                // Handle regular gauge sheet
+                // Fetch existing data from Firestore to preserve manual edits
+                const existingData = await fetchSheetFromFirestore(sheetConfig.id);
+                const mergedData = mergeSheetData(existingData, data);
+                appState.appData[sheetConfig.id] = mergedData;
 
-            resultItems.push({
-                name: sheetConfig.name,
-                status: 'success',
-                detail: `${data.wells.length} wells loaded`
-            });
+                resultItems.push({
+                    name: sheetConfig.name,
+                    status: 'success',
+                    detail: `${data.wells.length} wells loaded`
+                });
+            }
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
             resultItems.push({
@@ -243,21 +261,23 @@ async function processBulkUpload(files) {
         processed++;
     }
 
-    // Save all sheets to Firestore (full data)
+    // Save all gauge sheets to Firestore (full data) - chemical sheets already saved
     const sheetsToSave = Object.keys(appState.appData);
     const totalSheets = sheetsToSave.length;
     
-    for (let i = 0; i < totalSheets; i++) {
-        const sheetId = sheetsToSave[i];
-        const sheetPercent = Math.floor((i / totalSheets) * 100);
-        
-        await saveSheetToFirestore(sheetId, appState.appData[sheetId], true, (message, percent) => {
-            // Map the save progress for each sheet
-            const basePercent = Math.floor((i / totalSheets) * 85);
-            const sheetProgress = Math.floor((percent / 90) * (85 / totalSheets));
-            progressFill.style.width = `${basePercent + sheetProgress}%`;
-            progressText.textContent = `[Sheet ${i + 1}/${totalSheets}] ${message}`;
-        });
+    if (totalSheets > 0) {
+        for (let i = 0; i < totalSheets; i++) {
+            const sheetId = sheetsToSave[i];
+            const sheetPercent = Math.floor((i / totalSheets) * 100);
+            
+            await saveSheetToFirestore(sheetId, appState.appData[sheetId], true, (message, percent) => {
+                // Map the save progress for each sheet
+                const basePercent = Math.floor((i / totalSheets) * 85);
+                const sheetProgress = Math.floor((percent / 90) * (85 / totalSheets));
+                progressFill.style.width = `${basePercent + sheetProgress}%`;
+                progressText.textContent = `[Sheet ${i + 1}/${totalSheets}] ${message}`;
+            });
+        }
     }
 
     progressFill.style.width = '90%';

@@ -6,6 +6,12 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    // Chemical programs collection (from Master Chemical Sheet)
+    // All authenticated users can read and write (shared data model)
+    match /chemicalPrograms/{programId} {
+      allow read, write: if isAuthenticated();
+    }
+    
     // Gauge sheets and all nested collections
     // All authenticated users can read and write (shared data model)
     match /gaugeSheets/{sheetId} {

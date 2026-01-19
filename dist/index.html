@@ -18,8 +18,8 @@
     <!-- Chart.js for charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <script type="module" crossorigin src="/assets/index-CsiVCs1B.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-B2L9jsnP.css">
+  <script type="module" crossorigin src="/assets/index-CvH7Zqkz.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BbiBXtYg.css">
 </head>
 <body>
     <!-- Auth Loading Splash Screen -->
@@ -212,12 +212,12 @@
                                 <span class="btn-icon">+</span>
                                 Re-upload Sheets
                             </button>
-                            <button class="btn-clear-cache" id="btnClearCache" title="Clear Cache">
+                            <button class="btn-clear-cache" id="btnClearCache" title="Clear Database">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6"></polyline>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                 </svg>
-                                <span class="btn-label">Clear Cache</span>
+                                <span class="btn-label">Clear Database</span>
                             </button>
                         </div>
                     </header>
@@ -448,7 +448,7 @@
                     <section class="card failure-card">
                         <div class="card-header-editable">
                             <h3>Failure History</h3>
-                            <button class="btn-edit" data-edit="failureHistory" title="Edit Failure History">
+                            <button class="btn-edit" id="btnAddFailure" title="Add Failure History">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                                 </svg>
@@ -458,12 +458,10 @@
                             <table id="failureTable">
                                 <thead>
                                     <tr>
-                                        <th>Date Down</th>
-                                        <th>Date Up</th>
-                                        <th>Downtime (days)</th>
-                                        <th>Oil Lost</th>
-                                        <th>Reason</th>
-                                        <th>Comments</th>
+                                        <th>Failure Date</th>
+                                        <th>File Name</th>
+                                        <th>Notes</th>
+                                        <th style="width: 60px;"></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -605,68 +603,102 @@
                 </div>
             </div>
 
-            <!-- Battery/Run Tickets View -->
+            <!-- Clear Database Modal -->
+            <div class="edit-modal" id="clearDatabaseModal">
+                <div class="edit-modal-overlay" id="clearDatabaseModalOverlay"></div>
+                <div class="edit-modal-content clear-database-modal">
+                    <div class="edit-modal-header">
+                        <h3>Clear Database</h3>
+                        <button class="btn-close-modal" id="btnCloseClearDatabaseModal">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="edit-modal-body">
+                        <!-- Options View -->
+                        <div id="clearOptionsView">
+                            <p class="modal-description">Choose what data to clear from the database:</p>
+                            <div class="clear-options-grid">
+                                <button class="clear-option-btn" id="btnClearAllData">
+                                    <div class="clear-option-icon clear-icon-danger">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                        </svg>
+                                    </div>
+                                    <div class="clear-option-content">
+                                        <h4>Clear All Data</h4>
+                                        <p>Deletes everything including your manual edits. You'll start completely fresh and need to re-upload all gauge sheets.</p>
+                                    </div>
+                                </button>
+                                <button class="clear-option-btn" id="btnClearExtractedOnly">
+                                    <div class="clear-option-icon clear-icon-warning">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="clear-option-content">
+                                        <h4>Clear Extracted Data Only</h4>
+                                        <p>Deletes production data from uploaded sheets but keeps your action items, chemical programs, failure history, and pressure readings.</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Progress View -->
+                        <div id="clearProgressView" style="display: none;">
+                            <div class="clear-progress-container">
+                                <div class="clear-progress-spinner">
+                                    <div class="loading-spinner-small"></div>
+                                </div>
+                                <h4 id="clearProgressTitle">Clearing Database...</h4>
+                                <div class="clear-progress-status">
+                                    <p id="clearProgressMessage">Starting...</p>
+                                </div>
+                                <div class="clear-progress-steps" id="clearProgressSteps">
+                                    <!-- Progress steps will be added here dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Battery View -->
             <div id="batteryView" class="view">
                 <header class="view-header">
                     <h2 id="batteryName">Battery Name</h2>
                     <span class="breadcrumb" id="batteryBreadcrumb"></span>
                 </header>
 
-                <div class="dashboard-grid battery-grid">
-                    <!-- Aggregated Production Chart -->
-                    <section class="card production-card">
-                        <h3>Production (All Wells)</h3>
-                        <div class="chart-container">
-                            <canvas id="batteryProductionChart"></canvas>
-                        </div>
-                    </section>
-
-                    <!-- Tank Volumes -->
-                    <section class="card">
-                        <h3>Tank Volumes</h3>
-                        <div class="table-container">
-                            <table id="tankTable">
-                                <thead>
-                                    <tr>
-                                        <th>Tank #</th>
-                                        <th>Ft</th>
-                                        <th>In</th>
-                                        <th>Bbl</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </section>
-
-                    <!-- Run Tickets -->
-                    <section class="card run-tickets-card">
-                        <h3>Run Tickets</h3>
-                        <div class="table-container">
-                            <table id="runTicketTable">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Ticket #</th>
-                                        <th>Tank</th>
-                                        <th>Ft (top)</th>
-                                        <th>In (top)</th>
-                                        <th>Ft (bttm)</th>
-                                        <th>In (bttm)</th>
-                                        <th>Vol</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </section>
-
-                    <!-- Action Items / Repairs -->
-                    <section class="card">
-                        <h3>Action Items / Repairs Needed</h3>
-                        <ul class="action-list" id="batteryActionList"></ul>
-                    </section>
+                <!-- Battery Stats -->
+                <div class="stats-grid stats-grid-3" id="batteryStats">
+                    <div class="stat-card-compact">
+                        <span class="stat-value" id="statBatteryOil">0</span>
+                        <span class="stat-label">Daily Oil (bbl)</span>
+                    </div>
+                    <div class="stat-card-compact">
+                        <span class="stat-value" id="statBatteryWater">0</span>
+                        <span class="stat-label">Daily Water (bbl)</span>
+                    </div>
+                    <div class="stat-card-compact">
+                        <span class="stat-value" id="statBatteryGas">0</span>
+                        <span class="stat-label">Daily Gas (mcf)</span>
+                    </div>
                 </div>
+
+                <!-- Wells List -->
+                <section class="card">
+                    <h3>Wells</h3>
+                    <div class="wells-grid" id="batteryWellsGrid">
+                        <p class="empty-message">Loading wells...</p>
+                    </div>
+                </section>
             </div>
 
             <!-- Aggregate Oil Chart View -->
@@ -783,6 +815,76 @@
                                 <!-- Dynamically populated with batteries -->
                             </div>
                         </aside>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Failure History Modal -->
+            <div class="edit-modal" id="failureModal">
+                <div class="edit-modal-overlay" id="failureModalOverlay"></div>
+                <div class="edit-modal-content failure-modal">
+                    <div class="edit-modal-header">
+                        <h3>Add Failure History Entry</h3>
+                        <button class="btn-close-modal" id="btnCloseFailureModal">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="edit-modal-body">
+                        <form id="failureForm" class="failure-form">
+                            <div class="form-group">
+                                <label for="failureDate">Failure Date <span class="required">*</span></label>
+                                <input type="date" id="failureDate" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Excel File <span class="required">*</span></label>
+                                <input type="file" id="failureFileInput" accept=".xlsx,.xls" hidden>
+                                
+                                <div class="file-drop-zone" id="fileDropZone">
+                                    <div class="file-drop-icon">
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="17 8 12 3 7 8"></polyline>
+                                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                                        </svg>
+                                    </div>
+                                    <p><strong>Click to upload</strong> or drag and drop</p>
+                                    <p class="file-hint">Excel files only (.xlsx, .xls) - Max 10MB</p>
+                                </div>
+                                
+                                <div class="file-info" id="fileInfo" style="display: none;">
+                                    <div class="file-info-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                            <polyline points="13 2 13 9 20 9"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="file-info-details">
+                                        <span class="file-name" id="fileName"></span>
+                                        <span class="file-size" id="fileSize"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="failureNotes">Notes</label>
+                                <textarea id="failureNotes" rows="4" placeholder="Add any notes about the failure..."></textarea>
+                            </div>
+                            
+                            <div class="upload-progress" id="uploadProgress" style="display: none;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressBar"></div>
+                                </div>
+                                <span class="progress-text" id="progressText">0%</span>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="edit-modal-footer">
+                        <button type="button" class="btn-cancel" id="btnCancelFailure">Cancel</button>
+                        <button type="submit" class="btn-save" id="btnSubmitFailure" form="failureForm">Add Entry</button>
                     </div>
                 </div>
             </div>

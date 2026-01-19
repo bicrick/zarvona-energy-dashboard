@@ -1,6 +1,7 @@
 import { appState } from './config.js';
 import { updateWellInFirestore } from './firestore-storage.js';
 import { formatDateForInput, escapeHtml } from './utils.js';
+import { findChemicalProgramMatch } from './chemical-matcher.js';
 
 let onEditSave = null;
 
@@ -104,8 +105,26 @@ function closeEditModal() {
 function renderChemicalProgramForm(data) {
     const cont = data.continuous || {};
     const truck = data.truckTreat || {};
+    
+    // Check if Master Chemical Sheet data exists for this well
+    const sheetData = appState.appData[appState.currentSheet];
+    const well = sheetData?.wells.find(w => w.id === appState.currentWell);
+    const matchedProgram = well ? findChemicalProgramMatch(well.name, appState.chemicalPrograms) : null;
+    
+    let infoNote = '';
+    if (matchedProgram) {
+        infoNote = `
+            <div style="padding: 1rem; margin-bottom: 1rem; background-color: #1a1d24; border-left: 3px solid #3b82f6; border-radius: 4px;">
+                <p style="margin: 0; font-size: 0.875rem; color: #9ea3ab;">
+                    <strong>Note:</strong> This well has chemical program data from the Master Chemical Sheet. 
+                    Manual edits here will be stored separately and will override the Master Chemical Sheet data when displayed.
+                </p>
+            </div>
+        `;
+    }
 
     return `
+        ${infoNote}
         <div class="chemical-form-grid">
             <div class="form-column-header"></div>
             <div class="form-column-header">Continuous</div>
@@ -123,6 +142,9 @@ function renderChemicalProgramForm(data) {
             <input type="text" class="edit-form-input" id="editChemContPPM" value="${cont.ppm || ''}" placeholder="-">
             <input type="text" class="edit-form-input" id="editChemTruckPPM" value="${truck.ppm || ''}" placeholder="-">
         </div>
+        <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+            Leave fields blank to remove values. These values will be stored as manual overrides.
+        </p>
     `;
 }
 
