@@ -4,9 +4,16 @@ import { renderProductionCharts } from './charts/production.js';
 import { initializeEditHandlers } from './edit-modal.js';
 import { renderDashboard } from './dashboard.js';
 import { hasUploadedData, getBatteryStats } from './data-aggregation.js';
-import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData, loadSheetAggregateData, loadMasterChemicalData } from './firestore-storage.js';
+import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData, loadSheetAggregateData, loadMasterChemicalData, updateChemicalProgramValues } from './firestore-storage.js';
 import { findChemicalProgramMatch } from './chemical-matcher.js';
 import { setActiveNavItem } from './navigation.js';
+
+// Master Chemical Sheet Edit Mode State
+const chemicalEditState = {
+    editMode: false,
+    editedCells: {},  // { normalizedWellName: { chemicalName: { value, category } } }
+    originalValues: {}  // Store original values for cancel/revert
+};
 
 // CSV Download utility functions
 function downloadCSV(data, headers, filename) {
@@ -241,6 +248,9 @@ function renderMasterChemicalTable() {
         }
         
         tableBody.innerHTML = programs.map(program => {
+            // Normalize well name for tracking edits
+            const normalizedWellName = program.wellName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            
             // No test data columns in new format
             let rowHTML = `<td>${program.wellName || '-'}</td><td>${program.batteryName || '-'}</td>`;
             
@@ -248,17 +258,52 @@ function renderMasterChemicalTable() {
                 const truckValue = program.truckTreating?.[chem];
                 const contValue = program.continuous?.[chem];
                 
-                let cellContent = '-';
-                if (truckValue !== undefined && contValue !== undefined) {
-                    const truckStr = typeof truckValue === 'number' ? truckValue.toFixed(2) : truckValue;
-                    const contStr = typeof contValue === 'number' ? contValue.toFixed(2) : contValue;
-                    cellContent = `<div style="font-size: 0.875rem;"><span style="color: #f97316;">T: ${truckStr}</span><br><span style="color: #3b82f6;">C: ${contStr}</span></div>`;
-                } else if (truckValue !== undefined) {
-                    const truckStr = typeof truckValue === 'number' ? truckValue.toFixed(2) : truckValue;
-                    cellContent = `<span style="color: #f97316;">T: ${truckStr}</span>`;
-                } else if (contValue !== undefined) {
-                    const contStr = typeof contValue === 'number' ? contValue.toFixed(2) : contValue;
-                    cellContent = `<span style="color: #3b82f6;">C: ${contStr}</span>`;
+                // Format values (use 0.00 for undefined/null values)
+                const truckStr = truckValue !== undefined && truckValue !== null 
+                    ? (typeof truckValue === 'number' ? truckValue.toFixed(2) : truckValue)
+                    : '0.00';
+                const contStr = contValue !== undefined && contValue !== null
+                    ? (typeof contValue === 'number' ? contValue.toFixed(2) : contValue)
+                    : '0.00';
+                
+                // Determine if we should show the cell content
+                const hasAnyValue = (truckValue !== undefined && truckValue !== null) || 
+                                   (contValue !== undefined && contValue !== null);
+                
+                let cellContent;
+                if (chemicalEditState.editMode) {
+                    // In edit mode, always show both truck treating and continuous as editable
+                    cellContent = `<div style="font-size: 0.875rem;">
+                        <span class="editable-cell-inline edit-mode-enabled ${truckValue ? '' : 'empty-value'}" 
+                              contenteditable="true" 
+                              data-well-name="${normalizedWellName}"
+                              data-chemical="${chem}"
+                              data-category="truckTreating"
+                              data-original-value="${truckStr}"
+                              style="color: #f97316;">T: ${truckStr}</span><br>
+                        <span class="editable-cell-inline edit-mode-enabled ${contValue ? '' : 'empty-value'}" 
+                              contenteditable="true" 
+                              data-well-name="${normalizedWellName}"
+                              data-chemical="${chem}"
+                              data-category="continuous"
+                              data-original-value="${contStr}"
+                              style="color: #3b82f6;">C: ${contStr}</span>
+                    </div>`;
+                } else {
+                    // In view mode, show values only if they exist, otherwise show "-"
+                    if (!hasAnyValue) {
+                        cellContent = '-';
+                    } else if (truckValue !== undefined && truckValue !== null && 
+                              contValue !== undefined && contValue !== null) {
+                        cellContent = `<div style="font-size: 0.875rem;">
+                            <span style="color: #f97316;">T: ${truckStr}</span><br>
+                            <span style="color: #3b82f6;">C: ${contStr}</span>
+                        </div>`;
+                    } else if (truckValue !== undefined && truckValue !== null) {
+                        cellContent = `<span style="color: #f97316;">T: ${truckStr}</span>`;
+                    } else if (contValue !== undefined && contValue !== null) {
+                        cellContent = `<span style="color: #3b82f6;">C: ${contStr}</span>`;
+                    }
                 }
                 
                 rowHTML += `<td>${cellContent}</td>`;
@@ -266,6 +311,11 @@ function renderMasterChemicalTable() {
             
             return `<tr>${rowHTML}</tr>`;
         }).join('');
+        
+        // Add edit handlers if in edit mode
+        if (chemicalEditState.editMode) {
+            attachChemicalEditHandlers();
+        }
     };
     
     // Initial render
@@ -324,6 +374,376 @@ function renderMasterChemicalTable() {
             downloadCSV(csvData, headers, 'Master_Chemical_Sheet.csv');
         });
     }
+    
+    // Initialize Edit/Save/Cancel button handlers
+    initializeChemicalEditButtons();
+}
+
+// Attach edit handlers to all editable cells
+function attachChemicalEditHandlers() {
+    const editableCells = document.querySelectorAll('.editable-cell-inline');
+    
+    editableCells.forEach(cell => {
+        // Focus event - store original value
+        cell.addEventListener('focus', (e) => {
+            const wellName = e.target.dataset.wellName;
+            const chemical = e.target.dataset.chemical;
+            const category = e.target.dataset.category;
+            const originalValue = e.target.dataset.originalValue;
+            
+            // Store original value for cancel
+            if (!chemicalEditState.originalValues[wellName]) {
+                chemicalEditState.originalValues[wellName] = {};
+            }
+            if (!chemicalEditState.originalValues[wellName][chemical]) {
+                chemicalEditState.originalValues[wellName][chemical] = {};
+            }
+            chemicalEditState.originalValues[wellName][chemical][category] = originalValue;
+            
+            // Select the numeric part of the text (after "T: " or "C: ")
+            const text = e.target.textContent;
+            const numericMatch = text.match(/[\d.]+/);
+            if (numericMatch) {
+                const range = document.createRange();
+                const selection = window.getSelection();
+                const textNode = e.target.firstChild;
+                if (textNode) {
+                    const startOffset = text.indexOf(numericMatch[0]);
+                    const endOffset = startOffset + numericMatch[0].length;
+                    range.setStart(textNode, startOffset);
+                    range.setEnd(textNode, endOffset);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+        });
+        
+        // Blur event - validate and track changes
+        cell.addEventListener('blur', (e) => {
+            validateAndTrackCellChange(e.target);
+        });
+        
+        // Keydown event - handle Enter and Escape
+        cell.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur();
+                
+                // Move to next editable cell
+                const allCells = Array.from(document.querySelectorAll('.editable-cell-inline'));
+                const currentIndex = allCells.indexOf(e.target);
+                if (currentIndex < allCells.length - 1) {
+                    allCells[currentIndex + 1].focus();
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                // Revert to original value
+                const prefix = e.target.textContent.startsWith('T:') ? 'T: ' : 'C: ';
+                e.target.textContent = prefix + e.target.dataset.originalValue;
+                e.target.classList.remove('modified');
+                e.target.blur();
+            }
+        });
+        
+        // Input event - validate numeric input
+        cell.addEventListener('input', (e) => {
+            const text = e.target.textContent;
+            const prefix = text.startsWith('T:') ? 'T: ' : 'C: ';
+            
+            // Extract numeric part
+            const numericPart = text.replace(/[TC]:\s*/, '').trim();
+            
+            // Allow only numbers and decimal point
+            const cleanedValue = numericPart.replace(/[^0-9.]/g, '');
+            
+            // Ensure only one decimal point
+            const parts = cleanedValue.split('.');
+            const finalValue = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+            
+            // Update content if it changed
+            if (prefix + finalValue !== text) {
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                const offset = range.startOffset;
+                
+                e.target.textContent = prefix + finalValue;
+                
+                // Restore cursor position
+                const textNode = e.target.firstChild;
+                if (textNode) {
+                    const newRange = document.createRange();
+                    const newOffset = Math.min(offset, textNode.length);
+                    newRange.setStart(textNode, newOffset);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                }
+            }
+        });
+    });
+}
+
+// Validate and track cell changes
+function validateAndTrackCellChange(cell) {
+    const wellName = cell.dataset.wellName;
+    const chemical = cell.dataset.chemical;
+    const category = cell.dataset.category;
+    const originalValue = cell.dataset.originalValue;
+    
+    // Extract the numeric value from "T: 12.34" or "C: 12.34"
+    const text = cell.textContent;
+    const numericMatch = text.match(/[\d.]+/);
+    const newValue = numericMatch ? numericMatch[0] : '';
+    
+    // Validate numeric value
+    const numValue = parseFloat(newValue);
+    if (newValue !== '' && (isNaN(numValue) || numValue < 0)) {
+        // Invalid value, revert to original
+        const prefix = text.startsWith('T:') ? 'T: ' : 'C: ';
+        cell.textContent = prefix + originalValue;
+        cell.classList.remove('modified');
+        return;
+    }
+    
+    // Check if value changed
+    const originalNum = parseFloat(originalValue);
+    const hasChanged = Math.abs(numValue - originalNum) > 0.001; // Account for floating point precision
+    
+    if (hasChanged) {
+        // Format to 2 decimal places
+        const formattedValue = numValue.toFixed(2);
+        const prefix = text.startsWith('T:') ? 'T: ' : 'C: ';
+        cell.textContent = prefix + formattedValue;
+        
+        // Track the change
+        if (!chemicalEditState.editedCells[wellName]) {
+            chemicalEditState.editedCells[wellName] = {};
+        }
+        if (!chemicalEditState.editedCells[wellName][chemical]) {
+            chemicalEditState.editedCells[wellName][chemical] = {};
+        }
+        
+        // If value is 0 or very close to 0, mark it for deletion
+        if (numValue < 0.001) {
+            chemicalEditState.editedCells[wellName][chemical][category] = null; // null means delete
+        } else {
+            chemicalEditState.editedCells[wellName][chemical][category] = numValue;
+        }
+        
+        // Add visual indicator and remove empty-value styling if present
+        cell.classList.add('modified');
+        cell.classList.remove('empty-value');
+        
+        // If value is now non-zero, remove empty styling
+        if (numValue > 0.001) {
+            cell.style.opacity = '';
+            cell.style.fontStyle = '';
+        }
+    } else {
+        // Value unchanged, remove from tracking
+        if (chemicalEditState.editedCells[wellName]?.[chemical]?.[category] !== undefined) {
+            delete chemicalEditState.editedCells[wellName][chemical][category];
+            
+            // Clean up empty objects
+            if (Object.keys(chemicalEditState.editedCells[wellName][chemical]).length === 0) {
+                delete chemicalEditState.editedCells[wellName][chemical];
+            }
+            if (Object.keys(chemicalEditState.editedCells[wellName]).length === 0) {
+                delete chemicalEditState.editedCells[wellName];
+            }
+        }
+        cell.classList.remove('modified');
+    }
+    
+    // Update changes indicator
+    updateChangesIndicator();
+}
+
+// Update the changes indicator badge
+function updateChangesIndicator() {
+    const indicator = document.getElementById('chemicalChangesIndicator');
+    const changeCount = Object.values(chemicalEditState.editedCells).reduce((total, well) => {
+        return total + Object.values(well).reduce((wellTotal, chem) => {
+            return wellTotal + Object.keys(chem).length;
+        }, 0);
+    }, 0);
+    
+    if (changeCount > 0) {
+        indicator.textContent = `${changeCount} change${changeCount > 1 ? 's' : ''}`;
+        indicator.style.display = 'inline-block';
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+// Initialize Edit/Save/Cancel button handlers
+function initializeChemicalEditButtons() {
+    const editBtn = document.getElementById('btnEditChemical');
+    const saveBtn = document.getElementById('btnSaveChemical');
+    const cancelBtn = document.getElementById('btnCancelChemical');
+    
+    if (editBtn) {
+        const newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        
+        newEditBtn.addEventListener('click', enterChemicalEditMode);
+    }
+    
+    if (saveBtn) {
+        const newSaveBtn = saveBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+        
+        newSaveBtn.addEventListener('click', saveChemicalChanges);
+    }
+    
+    if (cancelBtn) {
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        
+        newCancelBtn.addEventListener('click', cancelChemicalEdits);
+    }
+}
+
+// Enter edit mode
+function enterChemicalEditMode() {
+    chemicalEditState.editMode = true;
+    chemicalEditState.editedCells = {};
+    chemicalEditState.originalValues = {};
+    
+    // Toggle button visibility
+    document.getElementById('btnEditChemical').style.display = 'none';
+    document.getElementById('btnSaveChemical').style.display = 'inline-flex';
+    document.getElementById('btnCancelChemical').style.display = 'inline-flex';
+    
+    // Show edit mode info banner
+    const infoBanner = document.getElementById('chemicalEditInfoBanner');
+    if (infoBanner) {
+        infoBanner.style.display = 'flex';
+        
+        // Add close button handler
+        const closeBtn = document.getElementById('btnCloseEditInfo');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                infoBanner.style.display = 'none';
+            };
+        }
+    }
+    
+    // Re-render table with editable cells
+    renderMasterChemicalTable();
+}
+
+// Exit edit mode (helper function)
+function exitChemicalEditMode() {
+    chemicalEditState.editMode = false;
+    chemicalEditState.editedCells = {};
+    chemicalEditState.originalValues = {};
+    
+    // Reset save button state
+    const saveBtn = document.getElementById('btnSaveChemical');
+    const cancelBtn = document.getElementById('btnCancelChemical');
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+        </svg> Save`;
+    }
+    if (cancelBtn) {
+        cancelBtn.disabled = false;
+    }
+    
+    // Toggle button visibility
+    document.getElementById('btnEditChemical').style.display = 'inline-flex';
+    document.getElementById('btnSaveChemical').style.display = 'none';
+    document.getElementById('btnCancelChemical').style.display = 'none';
+    document.getElementById('chemicalChangesIndicator').style.display = 'none';
+    
+    // Hide edit mode info banner
+    const infoBanner = document.getElementById('chemicalEditInfoBanner');
+    if (infoBanner) {
+        infoBanner.style.display = 'none';
+    }
+    
+    // Re-render table as read-only
+    renderMasterChemicalTable();
+}
+
+// Save all chemical changes to Firestore
+async function saveChemicalChanges() {
+    if (Object.keys(chemicalEditState.editedCells).length === 0) {
+        alert('No changes to save');
+        return;
+    }
+    
+    // Disable save button during save
+    const saveBtn = document.getElementById('btnSaveChemical');
+    const cancelBtn = document.getElementById('btnCancelChemical');
+    const originalSaveText = saveBtn.innerHTML;
+    
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    saveBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinning">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 6v6l4 2"></path>
+    </svg> Saving...`;
+    
+    try {
+        // Save to Firestore (will throw error if it fails)
+        await updateChemicalProgramValues(chemicalEditState.editedCells);
+        
+        // Exit edit mode and re-render
+        exitChemicalEditMode();
+        
+        // Show success message
+        const indicator = document.getElementById('chemicalChangesIndicator');
+        indicator.textContent = 'Saved!';
+        indicator.style.display = 'inline-block';
+        indicator.style.backgroundColor = '#22c55e';
+        
+        setTimeout(() => {
+            indicator.style.display = 'none';
+            indicator.style.backgroundColor = '';
+        }, 3000);
+    } catch (error) {
+        console.error('Error saving chemical changes:', error);
+        
+        // Provide more specific error message
+        let errorMessage = 'Failed to save changes. ';
+        if (error.message?.includes('ERR_BLOCKED_BY_CLIENT') || 
+            error.code === 'resource-exhausted' ||
+            navigator.onLine === false) {
+            errorMessage += 'Network issue detected. Please check:\n\n' +
+                          '1. Your internet connection\n' +
+                          '2. Ad blockers or browser extensions may be blocking Firestore\n' +
+                          '3. Try disabling extensions temporarily';
+        } else if (error.code === 'permission-denied') {
+            errorMessage += 'Permission denied. Please check your authentication.';
+        } else {
+            errorMessage += 'Please try again.\n\nError: ' + (error.message || 'Unknown error');
+        }
+        
+        alert(errorMessage);
+        
+        // Re-enable buttons
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.innerHTML = originalSaveText;
+    }
+}
+
+// Cancel editing and revert all changes
+function cancelChemicalEdits() {
+    if (Object.keys(chemicalEditState.editedCells).length > 0) {
+        const confirmed = confirm('You have unsaved changes. Are you sure you want to cancel?');
+        if (!confirmed) {
+            return;
+        }
+    }
+    
+    // Exit edit mode (this clears all state and re-renders)
+    exitChemicalEditMode();
 }
 
 function showBatteryLoadingState() {

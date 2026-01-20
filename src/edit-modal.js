@@ -103,28 +103,83 @@ function closeEditModal() {
 }
 
 function renderChemicalProgramForm(data) {
-    const cont = data.continuous || {};
-    const truck = data.truckTreat || {};
-    
     // Check if Master Chemical Sheet data exists for this well
     const sheetData = appState.appData[appState.currentSheet];
     const well = sheetData?.wells.find(w => w.id === appState.currentWell);
     const matchedProgram = well ? findChemicalProgramMatch(well.name, appState.chemicalPrograms) : null;
     
-    let infoNote = '';
+    // Use matched program if available, otherwise use manual data
+    let programData = null;
+    let dataSource = 'none';
+    
     if (matchedProgram) {
-        infoNote = `
+        dataSource = 'master';
+        programData = matchedProgram;
+    } else if (data && (data.continuous || data.truckTreat)) {
+        dataSource = 'manual';
+        programData = {
+            continuous: data.continuous || {},
+            truckTreating: data.truckTreat || {}
+        };
+    }
+    
+    // If we have Master Chemical Sheet data, render dynamic form
+    if (dataSource === 'master') {
+        // Collect all unique chemicals
+        const allChemicals = new Set();
+        Object.keys(programData.truckTreating || {}).forEach(chem => allChemicals.add(chem));
+        Object.keys(programData.continuous || {}).forEach(chem => allChemicals.add(chem));
+        const chemicalsList = Array.from(allChemicals).sort();
+        
+        const lastUpdated = programData.lastUpdated ? new Date(programData.lastUpdated).toLocaleDateString() : '';
+        
+        let chemicalsHTML = '';
+        chemicalsList.forEach(chem => {
+            const contValue = programData.continuous?.[chem] !== undefined && programData.continuous?.[chem] !== null 
+                ? programData.continuous[chem] 
+                : '';
+            const truckValue = programData.truckTreating?.[chem] !== undefined && programData.truckTreating?.[chem] !== null
+                ? programData.truckTreating[chem]
+                : '';
+            
+            chemicalsHTML += `
+                <div class="form-row-label">${chem}</div>
+                <input type="number" step="0.01" class="edit-form-input" 
+                       data-chemical="${chem}" 
+                       data-category="continuous" 
+                       value="${contValue}" 
+                       placeholder="-">
+                <input type="number" step="0.01" class="edit-form-input" 
+                       data-chemical="${chem}" 
+                       data-category="truckTreating" 
+                       value="${truckValue}" 
+                       placeholder="-">
+            `;
+        });
+        
+        return `
             <div style="padding: 1rem; margin-bottom: 1rem; background-color: #1a1d24; border-left: 3px solid #3b82f6; border-radius: 4px;">
                 <p style="margin: 0; font-size: 0.875rem; color: #9ea3ab;">
-                    <strong>Note:</strong> This well has chemical program data from the Master Chemical Sheet. 
-                    Manual edits here will be stored separately and will override the Master Chemical Sheet data when displayed.
+                    <strong>Note:</strong> This well has chemical program data from the Master Chemical Sheet. Manual edits here will be stored separately and will override the Master Chemical Sheet data when displayed.
                 </p>
             </div>
+            <div class="chemical-form-grid">
+                <div class="form-column-header"></div>
+                <div class="form-column-header">CONTINUOUS</div>
+                <div class="form-column-header">TRUCK TREAT</div>
+                ${chemicalsHTML}
+            </div>
+            <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+                Leave fields blank to remove values. These values will be stored as manual overrides.
+            </p>
         `;
     }
-
+    
+    // Otherwise, render the old manual format
+    const cont = data?.continuous || {};
+    const truck = data?.truckTreat || {};
+    
     return `
-        ${infoNote}
         <div class="chemical-form-grid">
             <div class="form-column-header"></div>
             <div class="form-column-header">Continuous</div>
@@ -461,6 +516,38 @@ async function saveEditedData() {
 }
 
 function readChemicalProgramForm() {
+    // Check if we're using the new dynamic format (Master Chemical Sheet)
+    const dynamicInputs = document.querySelectorAll('.edit-form-input[data-chemical]');
+    
+    if (dynamicInputs.length > 0) {
+        // New format: dynamic chemicals
+        const continuous = {};
+        const truckTreating = {};
+        
+        dynamicInputs.forEach(input => {
+            const chemical = input.dataset.chemical;
+            const category = input.dataset.category;
+            const value = input.value.trim();
+            
+            if (value !== '') {
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue)) {
+                    if (category === 'continuous') {
+                        continuous[chemical] = numValue;
+                    } else if (category === 'truckTreating') {
+                        truckTreating[chemical] = numValue;
+                    }
+                }
+            }
+        });
+        
+        return {
+            continuous,
+            truckTreat: truckTreating
+        };
+    }
+    
+    // Old format: rate/chems/ppm
     return {
         continuous: {
             rate: document.getElementById('editChemContRate')?.value || '',

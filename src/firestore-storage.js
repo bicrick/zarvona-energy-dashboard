@@ -6,6 +6,7 @@ import {
     getDocs,
     writeBatch,
     deleteDoc,
+    deleteField,
     query,
     where,
     orderBy,
@@ -1366,6 +1367,86 @@ export function getChemicalProgramForWell(wellName) {
     // Try fuzzy matching if exact match fails
     // This will be handled by the chemical-matcher module in the calling code
     return null;
+}
+
+/**
+ * Update chemical program values in Firestore (for inline editing)
+ * @param {object} editedCells - Object with structure: { normalizedWellName: { chemicalName: { category: value } } }
+ * @returns {Promise<boolean>} Success status
+ */
+export async function updateChemicalProgramValues(editedCells) {
+    try {
+        if (!editedCells || Object.keys(editedCells).length === 0) {
+            console.log('No changes to save');
+            return true;
+        }
+        
+        const batch = writeBatch(db);
+        let updateCount = 0;
+        
+        for (const [normalizedWellName, chemicalChanges] of Object.entries(editedCells)) {
+            const docRef = doc(db, 'chemicalPrograms', normalizedWellName);
+            const updates = {};
+            
+            // Build the update object with nested field paths
+            for (const [chemicalName, categories] of Object.entries(chemicalChanges)) {
+                for (const [category, value] of Object.entries(categories)) {
+                    // Use dot notation for nested field updates
+                    // If value is null, mark field for deletion
+                    if (value === null) {
+                        updates[`${category}.${chemicalName}`] = deleteField();
+                    } else {
+                        updates[`${category}.${chemicalName}`] = Number(value);
+                    }
+                    updateCount++;
+                }
+            }
+            
+            // Add lastUpdated timestamp
+            updates.lastUpdated = Timestamp.now();
+            
+            // Add to batch
+            batch.update(docRef, updates);
+        }
+        
+        // Commit all updates
+        await batch.commit();
+        
+        console.log(`Successfully updated ${updateCount} chemical values across ${Object.keys(editedCells).length} wells`);
+        
+        // Update appState with new values
+        for (const [normalizedWellName, chemicalChanges] of Object.entries(editedCells)) {
+            if (appState.chemicalPrograms[normalizedWellName]) {
+                for (const [chemicalName, categories] of Object.entries(chemicalChanges)) {
+                    for (const [category, value] of Object.entries(categories)) {
+                        if (!appState.chemicalPrograms[normalizedWellName][category]) {
+                            appState.chemicalPrograms[normalizedWellName][category] = {};
+                        }
+                        
+                        // If value is null, delete the field from appState
+                        if (value === null) {
+                            delete appState.chemicalPrograms[normalizedWellName][category][chemicalName];
+                        } else {
+                            appState.chemicalPrograms[normalizedWellName][category][chemicalName] = Number(value);
+                        }
+                    }
+                }
+                appState.chemicalPrograms[normalizedWellName].lastUpdated = new Date();
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error updating chemical program values:', error);
+        console.error('Error details:', {
+            code: error.code,
+            message: error.message,
+            name: error.name
+        });
+        
+        // Re-throw the error so the UI can provide specific feedback
+        throw error;
+    }
 }
 
 /**

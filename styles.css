@@ -4655,6 +4655,241 @@ tbody tr:nth-child(even) {
     font-size: 0.875rem;
 }
 
+/* Editable Cell Styles */
+.editable-cell-inline {
+    display: inline-block;
+    min-width: 2rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.editable-cell-inline.edit-mode-enabled {
+    cursor: text;
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid transparent;
+}
+
+.editable-cell-inline.edit-mode-enabled:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.editable-cell-inline.edit-mode-enabled:focus {
+    outline: none;
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.editable-cell-inline.modified {
+    position: relative;
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.5);
+}
+
+.editable-cell-inline.modified::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 8px 8px 0;
+    border-color: transparent var(--warning) transparent transparent;
+}
+
+.editable-cell-inline.empty-value {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+.editable-cell-inline.empty-value:hover {
+    opacity: 0.7;
+}
+
+.editable-cell-inline.empty-value:focus {
+    opacity: 1;
+    font-style: normal;
+}
+
+/* Edit Mode Info Banner */
+.edit-mode-info-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    position: relative;
+}
+
+.edit-mode-info-banner .info-icon {
+    flex-shrink: 0;
+    color: var(--accent);
+    margin-top: 2px;
+}
+
+.edit-mode-info-banner .info-content {
+    flex: 1;
+}
+
+.edit-mode-info-banner .info-content strong {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.edit-mode-info-banner .info-content p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.edit-mode-info-banner .info-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.edit-mode-info-banner .info-close:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .edit-mode-info-banner {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+[data-theme="light"] .edit-mode-info-banner .info-close:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Edit mode toolbar button styles */
+.btn-edit-chemical,
+.btn-save-chemical,
+.btn-cancel-chemical {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-edit-chemical {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-edit-chemical:hover {
+    background: var(--accent-dark);
+}
+
+.btn-save-chemical {
+    background: var(--success);
+    color: white;
+}
+
+.btn-save-chemical:hover:not(:disabled) {
+    background: #059669;
+}
+
+.btn-save-chemical:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-cancel-chemical {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-cancel-chemical:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    border-color: var(--text-muted);
+}
+
+.btn-cancel-chemical:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Changes indicator badge */
+.changes-indicator {
+    display: inline-block;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: white;
+    background: var(--warning);
+    border-radius: 12px;
+    margin-left: 0.5rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Spinning animation for save button */
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .editable-cell-inline.edit-mode-enabled {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+[data-theme="light"] .editable-cell-inline.edit-mode-enabled:hover {
+    background: rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="light"] .editable-cell-inline.edit-mode-enabled:focus {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="light"] .editable-cell-inline.modified {
+    background: rgba(251, 191, 36, 0.2);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .master-chemical-toolbar {
