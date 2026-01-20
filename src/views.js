@@ -1133,7 +1133,7 @@ function renderChemicalProgram(manualProgram, matchedProgram, wellName) {
     // If no data at all, show empty state
     if (dataSource === 'none') {
         tableContainer.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: #6b7280;">
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
                 <p>No chemical program data available</p>
                 <p style="font-size: 0.875rem; margin-top: 0.5rem;">Upload the Master Chemical Sheet or add data manually</p>
             </div>
@@ -1154,7 +1154,7 @@ function renderChemicalProgram(manualProgram, matchedProgram, wellName) {
         tableHTML += `
             <thead>
                 <tr>
-                    <th colspan="2" style="font-size: 0.875rem; color: #9ea3ab; font-weight: normal; text-align: center;">
+                    <th colspan="2" style="font-size: 0.875rem; color: var(--text-muted); font-weight: normal; text-align: center;">
                         From Master Chemical Sheet${updateInfo}
                     </th>
                 </tr>
@@ -1166,7 +1166,7 @@ function renderChemicalProgram(manualProgram, matchedProgram, wellName) {
         if (truckChems.length > 0) {
             tableHTML += `
                 <tr>
-                    <td colspan="2" style="font-weight: 600; background-color: #282c33; padding: 0.75rem;">
+                    <td colspan="2" style="font-weight: 600; background-color: var(--bg-tertiary); padding: 0.75rem;">
                         TRUCK TREATING (gal/month)
                     </td>
                 </tr>
@@ -1187,7 +1187,7 @@ function renderChemicalProgram(manualProgram, matchedProgram, wellName) {
         if (continuousChems.length > 0) {
             tableHTML += `
                 <tr>
-                    <td colspan="2" style="font-weight: 600; background-color: #282c33; padding: 0.75rem; padding-top: ${truckChems.length > 0 ? '1rem' : '0.75rem'};">
+                    <td colspan="2" style="font-weight: 600; background-color: var(--bg-tertiary); padding: 0.75rem; padding-top: ${truckChems.length > 0 ? '1rem' : '0.75rem'};">
                         CONTINUOUS (gal/month)
                     </td>
                 </tr>
@@ -1214,7 +1214,7 @@ function renderChemicalProgram(manualProgram, matchedProgram, wellName) {
         tableHTML += `
             <thead>
                 <tr>
-                    <th colspan="2" style="font-size: 0.875rem; color: #9ea3ab; font-weight: normal; text-align: center;">
+                    <th colspan="2" style="font-size: 0.875rem; color: var(--text-muted); font-weight: normal; text-align: center;">
                         Manually Entered
                     </th>
                 </tr>

@@ -158,10 +158,12 @@ function renderChemicalProgramForm(data) {
         });
         
         return `
-            <div style="padding: 1rem; margin-bottom: 1rem; background-color: #1a1d24; border-left: 3px solid #3b82f6; border-radius: 4px;">
-                <p style="margin: 0; font-size: 0.875rem; color: #9ea3ab;">
-                    <strong>Note:</strong> This well has chemical program data from the Master Chemical Sheet. Manual edits here will be stored separately and will override the Master Chemical Sheet data when displayed.
-                </p>
+            <div class="edit-mode-info-banner">
+                <div class="info-content">
+                    <p>
+                        <strong>Note:</strong> This well has chemical program data from the Master Chemical Sheet. Manual edits here will be stored separately and will override the Master Chemical Sheet data when displayed.
+                    </p>
+                </div>
             </div>
             <div class="chemical-form-grid">
                 <div class="form-column-header"></div>
@@ -169,7 +171,7 @@ function renderChemicalProgramForm(data) {
                 <div class="form-column-header">TRUCK TREAT</div>
                 ${chemicalsHTML}
             </div>
-            <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+            <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
                 Leave fields blank to remove values. These values will be stored as manual overrides.
             </p>
         `;
@@ -197,7 +199,7 @@ function renderChemicalProgramForm(data) {
             <input type="text" class="edit-form-input" id="editChemContPPM" value="${cont.ppm || ''}" placeholder="-">
             <input type="text" class="edit-form-input" id="editChemTruckPPM" value="${truck.ppm || ''}" placeholder="-">
         </div>
-        <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+        <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
             Leave fields blank to remove values. These values will be stored as manual overrides.
         </p>
     `;
