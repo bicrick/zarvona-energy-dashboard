@@ -22,6 +22,14 @@ export const BigMaxParser = {
         { id: 'bigmax-13-5', name: 'Big Max 13 #5', oilCol: 49, waterCol: 50, gasCol: 51, status: 'active' },
         { id: 'bigmax-14-4', name: 'Big Max 14 #4', oilCol: 55, waterCol: 56, gasCol: 57, status: 'active' }
     ],
+    productionConfig: {
+        sheet: 'Total',
+        headerRowIndex: 6,
+        dateCol: 0,
+        oilProdCol: 1,
+        waterProdCol: 3,
+        gasProdCol: 2
+    },
 
     parse(workbook) {
         const result = {
@@ -31,7 +39,7 @@ export const BigMaxParser = {
             wells: [],
             runTickets: [],
             rawRowCount: 0,
-            batteryProduction: []  // No battery-level production for Big Max
+            batteryProduction: []
         };
 
         if (workbook.Sheets['Well Test']) {
@@ -39,6 +47,9 @@ export const BigMaxParser = {
             result.wells = wellTestData.wells;
             result.rawRowCount = wellTestData.rowCount;
         }
+
+        // Parse battery-level production
+        result.batteryProduction = this.parseBatteryProduction(workbook);
 
         if (workbook.Sheets['Run Tickets']) {
             result.runTickets = this.parseRunTicketsSheet(workbook.Sheets['Run Tickets']);
@@ -132,6 +143,47 @@ export const BigMaxParser = {
 
         tickets.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
         return tickets.slice(0, 100);
+    },
+
+    parseBatteryProduction(workbook) {
+        const config = this.productionConfig;
+        if (!config) return [];
+        const sheet = workbook.Sheets[config.sheet];
+        if (!sheet) return [];
+
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        if (!data || data.length === 0) return [];
+
+        const production = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        for (let i = config.headerRowIndex + 2; i < data.length; i++) {
+            const row = data[i];
+            if (!row) continue;
+            const dateStr = this.parseDate(row[config.dateCol]);
+            if (!dateStr) continue;
+
+            // Skip future dates
+            const prodDate = new Date(dateStr);
+            if (prodDate > today) continue;
+
+            const oil = this.parseNumber(row[config.oilProdCol]);
+            const water = this.parseNumber(row[config.waterProdCol]);
+            const gas = config.gasProdCol !== null ? this.parseNumber(row[config.gasProdCol]) : null;
+
+            if (oil !== null || water !== null || gas !== null) {
+                production.push({
+                    date: new Date(dateStr),
+                    oil: oil,
+                    water: water,
+                    gas: gas
+                });
+            }
+        }
+
+        production.sort((a, b) => a.date - b.date);
+        return production;
     },
 
     parseDate(val) {
