@@ -1329,6 +1329,21 @@ export async function loadChemicalProgramData(progressCallback = null) {
 }
 
 /**
+ * Load Master Chemical Sheet data formatted for table display
+ * @returns {Promise<void>} Loads data into appState.chemicalPrograms
+ */
+export async function loadMasterChemicalData() {
+    try {
+        // Always reload to get latest data
+        await loadChemicalProgramData();
+        console.log(`Loaded ${Object.keys(appState.chemicalPrograms).length} chemical programs`);
+    } catch (error) {
+        console.error('Error loading Master Chemical data:', error);
+        throw error;
+    }
+}
+
+/**
  * Get chemical program for a specific well (with fuzzy matching)
  * @param {string} wellName - The well name to search for
  * @returns {object|null} Chemical program data or null if not found
@@ -1351,4 +1366,120 @@ export function getChemicalProgramForWell(wellName) {
     // Try fuzzy matching if exact match fails
     // This will be handled by the chemical-matcher module in the calling code
     return null;
+}
+
+/**
+ * Match and update all existing wells with chemical program data
+ * Uses fuzzy matching to find wells that correspond to chemical programs
+ * @param {Function} progressCallback - Optional callback to report progress (message, percent)
+ * @returns {Promise<object>} Object with match statistics
+ */
+export async function matchChemicalProgramsToExistingWells(progressCallback = null) {
+    try {
+        const logProgress = (message, percent) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message, percent);
+        };
+        
+        logProgress('Loading chemical programs...', 0);
+        
+        // Ensure chemical programs are loaded
+        await loadChemicalProgramData();
+        
+        if (Object.keys(appState.chemicalPrograms).length === 0) {
+            logProgress('No chemical programs to match', 100);
+            return { matched: 0, total: 0, updated: 0 };
+        }
+        
+        logProgress('Loading all gauge sheets...', 5);
+        
+        // Import the chemical matcher
+        const { findChemicalProgramMatch } = await import('./chemical-matcher.js');
+        
+        // Get all gauge sheets
+        const gaugeSheetsColl = collection(db, 'gaugeSheets');
+        const sheetsSnapshot = await getDocs(gaugeSheetsColl);
+        
+        let totalWells = 0;
+        let matchedWells = 0;
+        let updatedWells = 0;
+        
+        const sheets = sheetsSnapshot.docs;
+        const totalSheets = sheets.length;
+        
+        logProgress(`Found ${totalSheets} gauge sheets to process`, 10);
+        
+        for (let sheetIdx = 0; sheetIdx < totalSheets; sheetIdx++) {
+            const sheetDoc = sheets[sheetIdx];
+            const sheetId = sheetDoc.id;
+            const sheetPercent = 10 + Math.floor((sheetIdx / totalSheets) * 80);
+            
+            logProgress(`Processing sheet ${sheetIdx + 1}/${totalSheets}: ${sheetId}`, sheetPercent);
+            
+            // Get all wells in this sheet
+            const wellsColl = collection(db, 'gaugeSheets', sheetId, 'wells');
+            const wellsSnapshot = await getDocs(wellsColl);
+            
+            const batch = writeBatch(db);
+            let batchCount = 0;
+            
+            for (const wellDoc of wellsSnapshot.docs) {
+                const wellData = wellDoc.data();
+                totalWells++;
+                
+                // Try to find a matching chemical program
+                const match = findChemicalProgramMatch(wellData.name, appState.chemicalPrograms);
+                
+                if (match) {
+                    matchedWells++;
+                    
+                    // Check if the chemical program data has changed
+                    const existingProgram = wellData.chemicalProgram || {};
+                    const hasChanges = 
+                        JSON.stringify(existingProgram.truckTreating) !== JSON.stringify(match.truckTreating) ||
+                        JSON.stringify(existingProgram.continuous) !== JSON.stringify(match.continuous) ||
+                        JSON.stringify(existingProgram.testData) !== JSON.stringify(match.testData);
+                    
+                    if (hasChanges) {
+                        // Update the well with the matched chemical program
+                        const wellRef = doc(db, 'gaugeSheets', sheetId, 'wells', wellDoc.id);
+                        batch.update(wellRef, {
+                            chemicalProgram: {
+                                truckTreating: match.truckTreating || {},
+                                continuous: match.continuous || {},
+                                testData: match.testData || {},
+                                matchedFrom: match.wellName,
+                                lastUpdated: Timestamp.now()
+                            }
+                        });
+                        
+                        updatedWells++;
+                        batchCount++;
+                        
+                        // Commit batch if we hit 500 operations (Firestore limit)
+                        if (batchCount >= 500) {
+                            await batch.commit();
+                            batchCount = 0;
+                        }
+                    }
+                }
+            }
+            
+            // Commit remaining operations for this sheet
+            if (batchCount > 0) {
+                await batch.commit();
+            }
+        }
+        
+        logProgress(`Matching complete: ${matchedWells}/${totalWells} wells matched, ${updatedWells} updated`, 100);
+        
+        return {
+            total: totalWells,
+            matched: matchedWells,
+            updated: updatedWells
+        };
+    } catch (error) {
+        console.error('Error matching chemical programs to wells:', error);
+        throw error;
+    }
 }

@@ -4,8 +4,9 @@ import { renderProductionCharts } from './charts/production.js';
 import { initializeEditHandlers } from './edit-modal.js';
 import { renderDashboard } from './dashboard.js';
 import { hasUploadedData, getBatteryStats } from './data-aggregation.js';
-import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData, loadSheetAggregateData } from './firestore-storage.js';
+import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData, loadSheetAggregateData, loadMasterChemicalData } from './firestore-storage.js';
 import { findChemicalProgramMatch } from './chemical-matcher.js';
+import { setActiveNavItem } from './navigation.js';
 
 // CSV Download utility functions
 function downloadCSV(data, headers, filename) {
@@ -59,7 +60,8 @@ export function showView(viewName) {
         battery: 'batteryView',
         oilChart: 'oilChartView',
         waterChart: 'waterChartView',
-        gasChart: 'gasChartView'
+        gasChart: 'gasChartView',
+        masterChemical: 'masterChemicalView'
     };
 
     const viewId = viewMap[viewName];
@@ -150,6 +152,178 @@ export async function showBatteryView(sheetId) {
 
     // Render wells grid
     renderBatteryWellsGrid(sheetId);
+}
+
+export async function showMasterChemicalView() {
+    showView('masterChemical');
+    setActiveNavItem(document.getElementById('nav-master-chemical'));
+    
+    const emptyState = document.getElementById('masterChemicalEmpty');
+    const contentState = document.getElementById('masterChemicalContent');
+    const loadingState = document.getElementById('masterChemicalLoading');
+    
+    // Check if data is already loaded (chemicalPrograms is an object, not array)
+    if (appState.chemicalPrograms && Object.keys(appState.chemicalPrograms).length > 0) {
+        emptyState.style.display = 'none';
+        contentState.style.display = 'block';
+        renderMasterChemicalTable();
+        return;
+    }
+    
+    // Show loading state
+    emptyState.style.display = 'none';
+    contentState.style.display = 'block';
+    loadingState.style.display = 'flex';
+    
+    // Load data - use loadChemicalProgramData which populates appState.chemicalPrograms
+    try {
+        await loadMasterChemicalData();
+        
+        // Hide loading state
+        loadingState.style.display = 'none';
+        
+        // Check if we got data
+        if (appState.chemicalPrograms && Object.keys(appState.chemicalPrograms).length > 0) {
+            renderMasterChemicalTable();
+        } else {
+            // Show empty state
+            emptyState.style.display = 'flex';
+            contentState.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading Master Chemical data:', error);
+        loadingState.style.display = 'none';
+        emptyState.style.display = 'flex';
+        contentState.style.display = 'none';
+    }
+}
+
+function renderMasterChemicalTable() {
+    const tableBody = document.getElementById('chemicalTableBody');
+    const tableHeader = document.getElementById('chemicalTableHeader');
+    const statsElement = document.getElementById('chemicalDataStats');
+    const searchInput = document.getElementById('chemicalSearchInput');
+    
+    // chemicalPrograms is an object, not an array
+    if (!appState.chemicalPrograms || Object.keys(appState.chemicalPrograms).length === 0) {
+        return;
+    }
+    
+    // Convert to array and sort by well name
+    const programsArray = Object.values(appState.chemicalPrograms).sort((a, b) => {
+        return (a.wellName || '').localeCompare(b.wellName || '');
+    });
+    
+    // Update stats
+    statsElement.innerHTML = `<span class="stat-badge">${programsArray.length} wells</span>`;
+    
+    // Collect all unique chemical names
+    const allChemicals = new Set();
+    programsArray.forEach(program => {
+        Object.keys(program.truckTreating || {}).forEach(chem => allChemicals.add(chem));
+        Object.keys(program.continuous || {}).forEach(chem => allChemicals.add(chem));
+    });
+    
+    const chemicalsList = Array.from(allChemicals).sort();
+    
+    // Build table header - no test data columns in new format
+    let headerHTML = '<th>Well Name</th><th>Battery</th>';
+    chemicalsList.forEach(chem => {
+        headerHTML += `<th>${chem}</th>`;
+    });
+    tableHeader.innerHTML = headerHTML;
+    
+    // Build table rows
+    const renderRows = (programs) => {
+        if (programs.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="100" style="text-align: center; color: #6b7280;">No matching wells</td></tr>';
+            return;
+        }
+        
+        tableBody.innerHTML = programs.map(program => {
+            // No test data columns in new format
+            let rowHTML = `<td>${program.wellName || '-'}</td><td>${program.batteryName || '-'}</td>`;
+            
+            chemicalsList.forEach(chem => {
+                const truckValue = program.truckTreating?.[chem];
+                const contValue = program.continuous?.[chem];
+                
+                let cellContent = '-';
+                if (truckValue !== undefined && contValue !== undefined) {
+                    const truckStr = typeof truckValue === 'number' ? truckValue.toFixed(2) : truckValue;
+                    const contStr = typeof contValue === 'number' ? contValue.toFixed(2) : contValue;
+                    cellContent = `<div style="font-size: 0.875rem;"><span style="color: #f97316;">T: ${truckStr}</span><br><span style="color: #3b82f6;">C: ${contStr}</span></div>`;
+                } else if (truckValue !== undefined) {
+                    const truckStr = typeof truckValue === 'number' ? truckValue.toFixed(2) : truckValue;
+                    cellContent = `<span style="color: #f97316;">T: ${truckStr}</span>`;
+                } else if (contValue !== undefined) {
+                    const contStr = typeof contValue === 'number' ? contValue.toFixed(2) : contValue;
+                    cellContent = `<span style="color: #3b82f6;">C: ${contStr}</span>`;
+                }
+                
+                rowHTML += `<td>${cellContent}</td>`;
+            });
+            
+            return `<tr>${rowHTML}</tr>`;
+        }).join('');
+    };
+    
+    // Initial render
+    renderRows(programsArray);
+    
+    // Add search functionality
+    if (searchInput) {
+        const newSearchInput = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+        
+        newSearchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = programsArray.filter(program => {
+                const wellName = (program.wellName || '').toLowerCase();
+                const battery = (program.batteryName || '').toLowerCase();
+                return wellName.includes(searchTerm) || battery.includes(searchTerm);
+            });
+            renderRows(filtered);
+            statsElement.innerHTML = `<span class="stat-badge">${filtered.length} wells</span>`;
+        });
+    }
+    
+    // Add CSV export functionality
+    const exportBtn = document.getElementById('btnExportChemicalCSV');
+    if (exportBtn) {
+        const newExportBtn = exportBtn.cloneNode(true);
+        exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
+        
+        newExportBtn.addEventListener('click', () => {
+            const csvData = programsArray.map(program => {
+                // No test data columns in new format
+                const row = {
+                    'wellname': program.wellName || '',
+                    'battery': program.batteryName || ''
+                };
+                
+                chemicalsList.forEach(chem => {
+                    const truckValue = program.truckTreating?.[chem];
+                    const contValue = program.continuous?.[chem];
+                    
+                    if (truckValue !== undefined && contValue !== undefined) {
+                        row[chem] = `T: ${truckValue}, C: ${contValue}`;
+                    } else if (truckValue !== undefined) {
+                        row[chem] = `T: ${truckValue}`;
+                    } else if (contValue !== undefined) {
+                        row[chem] = `C: ${contValue}`;
+                    } else {
+                        row[chem] = '';
+                    }
+                });
+                
+                return row;
+            });
+            
+            const headers = ['Well Name', 'Battery', ...chemicalsList];
+            downloadCSV(csvData, headers, 'Master_Chemical_Sheet.csv');
+        });
+    }
 }
 
 function showBatteryLoadingState() {

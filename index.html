@@ -945,6 +945,75 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Master Chemical Sheet View -->
+            <div id="masterChemicalView" class="view">
+                <header class="view-header">
+                    <h2>Master Chemical Sheet</h2>
+                    <span class="breadcrumb">Chemical programs for all wells</span>
+                </header>
+
+                <div class="master-chemical-container">
+                    <!-- Empty State -->
+                    <div class="master-chemical-empty" id="masterChemicalEmpty">
+                        <div class="empty-state-icon">
+                            <img src="/src/assets/beaker-svgrepo-com.svg" alt="Chemical Beaker" width="64" height="64">
+                        </div>
+                        <h3>No Master Chemical Sheet data available</h3>
+                        <p>Upload the Master Chemical Sheet to view chemical programs for all wells.</p>
+                        <p class="expected-filename">Expected file: <code>Master Chemical Sheet.xlsx</code></p>
+                    </div>
+
+                    <!-- Data View -->
+                    <div class="master-chemical-content" id="masterChemicalContent" style="display: none;">
+                        <!-- Toolbar -->
+                        <div class="master-chemical-toolbar">
+                            <div class="toolbar-left">
+                                <div class="search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <path d="m21 21-4.35-4.35"></path>
+                                    </svg>
+                                    <input type="text" id="chemicalSearchInput" placeholder="Search by well name or battery...">
+                                </div>
+                                <div class="data-stats" id="chemicalDataStats">
+                                    <span class="stat-badge">0 wells</span>
+                                </div>
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="btn-export" id="btnExportChemicalCSV" title="Export to CSV">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Table Container -->
+                        <div class="master-chemical-table-container">
+                            <table class="master-chemical-table" id="masterChemicalTable">
+                                <thead>
+                                    <tr id="chemicalTableHeader">
+                                        <!-- Headers populated dynamically -->
+                                    </tr>
+                                </thead>
+                                <tbody id="chemicalTableBody">
+                                    <!-- Rows populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div class="master-chemical-loading" id="masterChemicalLoading" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <p>Loading chemical data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 

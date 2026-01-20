@@ -3,6 +3,8 @@ import { formatDate } from './utils.js';
 import { getAggregateStats, getTopProducingWells, getRecentWellTests, getAllActionItems } from './data-aggregation.js';
 import { showWellView } from './views.js';
 import { clearFirestoreData, clearExtractedDataOnly } from './firestore-storage.js';
+import { showOilChartView, showWaterChartView, showGasChartView } from './charts/aggregate.js';
+import { setActiveNavItem } from './navigation.js';
 
 const LOADING_PLACEHOLDER = '<div class="loading-placeholder"><div class="loading-spinner-small"></div><span>Loading...</span></div>';
 
@@ -146,6 +148,7 @@ function renderDashboardActionItems() {
 }
 
 export function initializeDashboardHandlers() {
+    console.log('initializeDashboardHandlers called');
     const btnReuploadAll = document.getElementById('btnReuploadAll');
     const btnClearCache = document.getElementById('btnClearCache');
     
@@ -227,6 +230,46 @@ export function initializeDashboardHandlers() {
             if (confirm('Are you sure you want to clear extracted data? This will delete production data from uploaded sheets but keep your manual edits (action items, chemical programs, etc.). You will need to re-upload gauge sheets.')) {
                 showClearProgress('Clearing Extracted Data');
                 await clearExtractedData();
+            }
+        });
+    }
+    
+    // Stat card click handlers - navigate to respective explorers
+    const statCardOil = document.getElementById('statCardOil');
+    const statCardWater = document.getElementById('statCardWater');
+    const statCardGas = document.getElementById('statCardGas');
+    
+    console.log('Initializing stat card handlers:', { statCardOil, statCardWater, statCardGas });
+    
+    if (statCardOil) {
+        statCardOil.addEventListener('click', () => {
+            console.log('Oil card clicked');
+            showOilChartView();
+            const navOilChart = document.getElementById('nav-oil-chart');
+            if (navOilChart) {
+                setActiveNavItem(navOilChart);
+            }
+        });
+    }
+    
+    if (statCardWater) {
+        statCardWater.addEventListener('click', () => {
+            console.log('Water card clicked');
+            showWaterChartView();
+            const navWaterChart = document.getElementById('nav-water-chart');
+            if (navWaterChart) {
+                setActiveNavItem(navWaterChart);
+            }
+        });
+    }
+    
+    if (statCardGas) {
+        statCardGas.addEventListener('click', () => {
+            console.log('Gas card clicked');
+            showGasChartView();
+            const navGasChart = document.getElementById('nav-gas-chart');
+            if (navGasChart) {
+                setActiveNavItem(navGasChart);
             }
         });
     }

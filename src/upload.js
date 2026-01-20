@@ -1,7 +1,7 @@
 import { GAUGE_SHEETS, appState } from './config.js';
-import { saveSheetToFirestore, fetchSheetFromFirestore, loadNavigationData, loadDashboardData, saveChemicalProgramData, loadChemicalProgramData } from './firestore-storage.js';
+import { saveSheetToFirestore, fetchSheetFromFirestore, loadNavigationData, loadDashboardData, saveChemicalProgramData, loadChemicalProgramData, matchChemicalProgramsToExistingWells } from './firestore-storage.js';
 import { refreshNavigation } from './navigation.js';
-import { showGaugeSheetView } from './views.js';
+import { showGaugeSheetView, showWellView, showMasterChemicalView } from './views.js';
 import { PARSERS } from './parsers/index.js';
 import { mergeSheetData } from './data-merge.js';
 
@@ -81,54 +81,96 @@ async function processUploadedFile(file) {
         progressText.textContent = 'Extracting data...';
 
         const data = parser.parse(workbook);
-        progressFill.style.width = '15%';
-        progressText.textContent = 'Checking for manual edits...';
+        
+        // Check if this is a chemical sheet
+        if (sheetConfig.isChemicalSheet) {
+            progressFill.style.width = '15%';
+            progressText.textContent = 'Saving chemical programs...';
+            
+            await saveChemicalProgramData(data.chemicalPrograms, (message, percent) => {
+                const overallPercent = 15 + Math.floor((percent / 100) * 40);
+                progressFill.style.width = `${overallPercent}%`;
+                progressText.textContent = message;
+            });
+            
+            progressFill.style.width = '55%';
+            progressText.textContent = 'Reloading chemical programs...';
+            await loadChemicalProgramData();
+            
+            progressFill.style.width = '60%';
+            progressText.textContent = 'Matching chemical programs to existing wells...';
+            
+            const matchResults = await matchChemicalProgramsToExistingWells((message, percent) => {
+                const overallPercent = 60 + Math.floor((percent / 100) * 30);
+                progressFill.style.width = `${overallPercent}%`;
+                progressText.textContent = message;
+            });
+            
+            progressFill.style.width = '90%';
+            progressText.textContent = 'Refreshing views...';
+            
+            // Refresh the Master Chemical Sheet view
+            showMasterChemicalView();
+            
+            progressFill.style.width = '100%';
+            progressText.textContent = `Complete! ${matchResults.matched} wells matched, ${matchResults.updated} wells updated`;
+            
+            setTimeout(() => {
+                progress.style.display = 'none';
+                progressFill.style.width = '0%';
+                refreshNavigation();
+            }, 2000);
+        } else {
+            // Handle regular gauge sheet
+            progressFill.style.width = '15%';
+            progressText.textContent = 'Checking for manual edits...';
 
-        // Fetch existing data from Firestore to preserve manual edits
-        const existingData = await fetchSheetFromFirestore(appState.currentSheet);
-        
-        progressFill.style.width = '20%';
-        progressText.textContent = 'Merging data...';
-        
-        // Merge new Excel data with existing Firestore data (preserves manual edits)
-        const mergedData = mergeSheetData(existingData, data);
-        appState.appData[appState.currentSheet] = mergedData;
-        
-        progressFill.style.width = '25%';
-        progressText.textContent = 'Saving to cloud...';
-        
-        // Save to Firestore (full data) with progress callback
-        await saveSheetToFirestore(appState.currentSheet, mergedData, true, (message, percent) => {
-            // Map the save progress (0-90%) to our overall progress (25-90%)
-            const overallPercent = 25 + Math.floor((percent / 90) * 65);
-            progressFill.style.width = `${overallPercent}%`;
-            progressText.textContent = message;
-        });
+            // Fetch existing data from Firestore to preserve manual edits
+            const existingData = await fetchSheetFromFirestore(appState.currentSheet);
+            
+            progressFill.style.width = '20%';
+            progressText.textContent = 'Merging data...';
+            
+            // Merge new Excel data with existing Firestore data (preserves manual edits)
+            const mergedData = mergeSheetData(existingData, data);
+            appState.appData[appState.currentSheet] = mergedData;
+            
+            progressFill.style.width = '25%';
+            progressText.textContent = 'Saving to cloud...';
+            
+            // Save to Firestore (full data) with progress callback
+            await saveSheetToFirestore(appState.currentSheet, mergedData, true, (message, percent) => {
+                // Map the save progress (0-90%) to our overall progress (25-90%)
+                const overallPercent = 25 + Math.floor((percent / 90) * 65);
+                progressFill.style.width = `${overallPercent}%`;
+                progressText.textContent = message;
+            });
 
-        progressFill.style.width = '92%';
-        progressText.textContent = 'Refreshing navigation data...';
-        
-        // Force a full data refresh from Firestore to ensure local state is up to date
-        await loadNavigationData((message) => {
-            progressText.textContent = message;
-        });
-        
-        progressFill.style.width = '96%';
-        progressText.textContent = 'Refreshing dashboard data...';
-        
-        await loadDashboardData((message) => {
-            progressText.textContent = message;
-        });
+            progressFill.style.width = '92%';
+            progressText.textContent = 'Refreshing navigation data...';
+            
+            // Force a full data refresh from Firestore to ensure local state is up to date
+            await loadNavigationData((message) => {
+                progressText.textContent = message;
+            });
+            
+            progressFill.style.width = '96%';
+            progressText.textContent = 'Refreshing dashboard data...';
+            
+            await loadDashboardData((message) => {
+                progressText.textContent = message;
+            });
 
-        progressFill.style.width = '100%';
-        progressText.textContent = 'Complete!';
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Complete!';
 
-        setTimeout(() => {
-            progress.style.display = 'none';
-            progressFill.style.width = '0%';
-            refreshNavigation();
-            showGaugeSheetView(appState.currentSheet);
-        }, 500);
+            setTimeout(() => {
+                progress.style.display = 'none';
+                progressFill.style.width = '0%';
+                refreshNavigation();
+                showGaugeSheetView(appState.currentSheet);
+            }, 500);
+        }
     } catch (error) {
         console.error('Error processing file:', error);
         alert('Error processing file: ' + error.message);
@@ -231,10 +273,16 @@ async function processBulkUpload(files) {
                 // Reload chemical programs into appState
                 await loadChemicalProgramData();
                 
+                // Match and update all existing wells with the new chemical data
+                progressText.textContent = 'Matching chemical programs to existing wells...';
+                const matchResults = await matchChemicalProgramsToExistingWells((message, percent) => {
+                    progressText.textContent = message;
+                });
+                
                 resultItems.push({
                     name: sheetConfig.name,
                     status: 'success',
-                    detail: `Chemical programs updated for ${data.chemicalPrograms.length} wells`
+                    detail: `${data.chemicalPrograms.length} chemical programs saved, ${matchResults.matched} wells matched, ${matchResults.updated} wells updated`
                 });
             } else {
                 // Handle regular gauge sheet
@@ -311,5 +359,23 @@ async function processBulkUpload(files) {
         `).join('');
 
         refreshNavigation();
+        
+        // If chemical data was uploaded, refresh relevant views
+        const chemicalSheetUploaded = resultItems.some(item => 
+            item.name.includes('Chemical') && item.status === 'success'
+        );
+        
+        if (chemicalSheetUploaded) {
+            // Refresh the Master Chemical Sheet view if it's currently active
+            const masterChemicalView = document.getElementById('masterChemicalView');
+            if (masterChemicalView && masterChemicalView.classList.contains('active')) {
+                showMasterChemicalView();
+            }
+            
+            // Also refresh the current well view if viewing a well
+            if (appState.currentSheet && appState.currentWell) {
+                showWellView(appState.currentSheet, appState.currentWell);
+            }
+        }
     }, 500);
 }
