@@ -377,14 +377,21 @@
                     <section class="card">
                         <div class="card-header-editable">
                             <h3>Well Test Table</h3>
-                            <button class="btn-download-csv" id="btnDownloadWellTests" title="Download as CSV">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                                <span class="btn-label">CSV</span>
-                            </button>
+                            <div class="card-header-actions">
+                                <button class="btn-download-csv" id="btnDownloadWellTests" title="Download as CSV">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    <span class="btn-label">CSV</span>
+                                </button>
+                                <button class="btn-edit" data-edit="wellTests" title="Edit Well Tests">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table id="wellTestTable">

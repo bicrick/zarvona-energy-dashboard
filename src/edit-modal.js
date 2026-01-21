@@ -1,5 +1,5 @@
 import { appState } from './config.js';
-import { updateWellInFirestore } from './firestore-storage.js';
+import { updateWellInFirestore, updateWellTests } from './firestore-storage.js';
 import { formatDateForInput, escapeHtml } from './utils.js';
 import { findChemicalProgramMatch } from './chemical-matcher.js';
 
@@ -71,7 +71,8 @@ function openEditModal(section) {
         chemicalProgram: 'Edit Chemical Program',
         failureHistory: 'Edit Failure History',
         actionItems: 'Edit Action Items',
-        pressureReadings: 'Edit Pressure Readings'
+        pressureReadings: 'Edit Pressure Readings',
+        wellTests: 'Edit Well Tests'
     };
     title.textContent = titles[section] || 'Edit';
 
@@ -90,6 +91,10 @@ function openEditModal(section) {
         case 'pressureReadings':
             body.innerHTML = renderPressureReadingsForm(well.pressureReadings || []);
             initializePressureReadingsHandlers();
+            break;
+        case 'wellTests':
+            body.innerHTML = renderWellTestForm(well.wellTests || []);
+            initializeWellTestHandlers();
             break;
     }
 
@@ -386,6 +391,55 @@ function attachActionItemDeleteHandler(btn) {
     });
 }
 
+function renderWellTestForm(data) {
+    let rowsHtml = '';
+
+    if (data.length > 0) {
+        rowsHtml = data.map((row, index) => `
+            <tr data-row-index="${index}">
+                <td><input type="date" class="edit-table-input" name="date" value="${formatDateForInput(row.date)}"></td>
+                <td><input type="number" step="0.01" class="edit-table-input" name="oil" value="${row.oil || ''}" placeholder="-"></td>
+                <td><input type="number" step="0.01" class="edit-table-input" name="water" value="${row.water || ''}" placeholder="-"></td>
+                <td><input type="number" step="0.01" class="edit-table-input" name="gas" value="${row.gas || ''}" placeholder="-"></td>
+                <td>
+                    <button type="button" class="btn-delete-row" title="Delete row">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    return `
+        <div class="edit-table-container">
+            <table class="edit-table" id="wellTestEditTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Oil (bbl)</th>
+                        <th>Water (bbl)</th>
+                        <th>Gas (mcf)</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="wellTestEditBody">
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </div>
+        <button type="button" class="btn-add-row" id="btnAddWellTestRow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Entry
+        </button>
+    `;
+}
+
 function renderPressureReadingsForm(data) {
     let rowsHtml = '';
 
@@ -435,6 +489,37 @@ function renderPressureReadingsForm(data) {
             Add Entry
         </button>
     `;
+}
+
+function initializeWellTestHandlers() {
+    const addBtn = document.getElementById('btnAddWellTestRow');
+    const tbody = document.getElementById('wellTestEditBody');
+
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="date" class="edit-table-input" name="date"></td>
+                <td><input type="number" step="0.01" class="edit-table-input" name="oil" placeholder="-"></td>
+                <td><input type="number" step="0.01" class="edit-table-input" name="water" placeholder="-"></td>
+                <td><input type="number" step="0.01" class="edit-table-input" name="gas" placeholder="-"></td>
+                <td>
+                    <button type="button" class="btn-delete-row" title="Delete row">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+            attachDeleteHandler(newRow.querySelector('.btn-delete-row'));
+        });
+    }
+
+    tbody.querySelectorAll('.btn-delete-row').forEach(btn => {
+        attachDeleteHandler(btn);
+    });
 }
 
 function initializePressureReadingsHandlers() {
@@ -505,9 +590,19 @@ async function saveEditedData() {
             well.pressureReadings = readPressureReadingsForm();
             updates.pressureReadings = well.pressureReadings;
             break;
+        case 'wellTests':
+            // Well tests are handled differently - stored in subcollection
+            const newWellTests = readWellTestForm();
+            const originalWellTests = well.wellTests || [];
+            await updateWellTests(appState.currentSheet, appState.currentWell, newWellTests, originalWellTests);
+            closeEditModal();
+            if (onEditSave) {
+                onEditSave(appState.currentSheet, appState.currentWell);
+            }
+            return; // Early return - updateWellTests handles everything
     }
 
-    // Save to Firestore
+    // Save to Firestore (for non-wellTests cases)
     await updateWellInFirestore(appState.currentSheet, appState.currentWell, updates);
     
     closeEditModal();
@@ -601,6 +696,30 @@ function readActionItemsForm() {
         const value = input.value.trim();
         if (value) {
             data.push(value);
+        }
+    });
+
+    return data;
+}
+
+function readWellTestForm() {
+    const tbody = document.getElementById('wellTestEditBody');
+    const rows = tbody.querySelectorAll('tr');
+    const data = [];
+
+    rows.forEach(row => {
+        const date = row.querySelector('input[name="date"]')?.value;
+        const oil = row.querySelector('input[name="oil"]')?.value;
+        const water = row.querySelector('input[name="water"]')?.value;
+        const gas = row.querySelector('input[name="gas"]')?.value;
+
+        if (date || oil || water || gas) {
+            data.push({
+                date: date || null,
+                oil: oil ? Number(oil) : null,
+                water: water ? Number(water) : null,
+                gas: gas ? Number(gas) : null
+            });
         }
     });
 

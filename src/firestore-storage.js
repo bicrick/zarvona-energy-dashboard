@@ -818,6 +818,117 @@ export async function updateWellInFirestore(sheetId, wellId, updates) {
 }
 
 /**
+ * Update well tests in Firestore (stored in subcollection)
+ * @param {string} sheetId - The gauge sheet ID
+ * @param {string} wellId - The well ID
+ * @param {array} newTests - Array of new/edited well tests
+ * @param {array} originalTests - Array of original well tests (for comparison)
+ * @returns {Promise<boolean>} Success status
+ */
+export async function updateWellTests(sheetId, wellId, newTests, originalTests) {
+    try {
+        console.log(`Updating well tests for well ${wellId}`);
+        
+        const batch = writeBatch(db);
+        let batchCount = 0;
+        
+        // Get sets of dates for comparison
+        const newDates = new Set(newTests.filter(t => t.date).map(t => {
+            const date = new Date(t.date);
+            return date.toISOString().split('T')[0];
+        }));
+        
+        const originalDates = new Set(originalTests.filter(t => t.date).map(t => {
+            const date = new Date(t.date);
+            return date.toISOString().split('T')[0];
+        }));
+        
+        // Upsert new/modified tests
+        for (const test of newTests) {
+            if (!test.date) continue; // Skip tests without dates
+            
+            const dateKey = new Date(test.date).toISOString().split('T')[0];
+            const testRef = doc(db, `gaugeSheets/${sheetId}/wells/${wellId}/wellTests`, dateKey);
+            
+            batch.set(testRef, {
+                date: Timestamp.fromDate(new Date(test.date)),
+                oil: test.oil !== null && test.oil !== undefined ? Number(test.oil) : 0,
+                water: test.water !== null && test.water !== undefined ? Number(test.water) : 0,
+                gas: test.gas !== null && test.gas !== undefined ? Number(test.gas) : 0
+            }, { merge: true });
+            
+            batchCount++;
+            
+            // Commit if we reach batch limit
+            if (batchCount >= 500) {
+                await batch.commit();
+                batchCount = 0;
+            }
+        }
+        
+        // Delete tests that were removed
+        for (const dateKey of originalDates) {
+            if (!newDates.has(dateKey)) {
+                const testRef = doc(db, `gaugeSheets/${sheetId}/wells/${wellId}/wellTests`, dateKey);
+                batch.delete(testRef);
+                batchCount++;
+                
+                // Commit if we reach batch limit
+                if (batchCount >= 500) {
+                    await batch.commit();
+                    batchCount = 0;
+                }
+            }
+        }
+        
+        // Commit remaining operations
+        if (batchCount > 0) {
+            await batch.commit();
+        }
+        
+        // Recalculate latestTest from newTests
+        let latestTest = null;
+        if (newTests.length > 0) {
+            const validTests = newTests.filter(t => t.date);
+            if (validTests.length > 0) {
+                const sortedTests = [...validTests].sort((a, b) => 
+                    new Date(b.date) - new Date(a.date)
+                );
+                const latest = sortedTests[0];
+                latestTest = {
+                    date: Timestamp.fromDate(new Date(latest.date)),
+                    oil: latest.oil !== null && latest.oil !== undefined ? Number(latest.oil) : 0,
+                    water: latest.water !== null && latest.water !== undefined ? Number(latest.water) : 0,
+                    gas: latest.gas !== null && latest.gas !== undefined ? Number(latest.gas) : 0
+                };
+            }
+        }
+        
+        // Update well document with new latestTest
+        const wellRef = doc(db, `gaugeSheets/${sheetId}/wells`, wellId);
+        await setDoc(wellRef, {
+            latestTest: latestTest
+        }, { merge: true });
+        
+        // Update local state
+        const well = appState.appData[sheetId]?.wells.find(w => w.id === wellId);
+        if (well) {
+            well.wellTests = newTests.map(t => ({
+                ...t,
+                date: new Date(t.date)
+            }));
+            well.latestTest = latestTest;
+        }
+        
+        console.log(`✓ Well tests updated successfully for well ${wellId}`);
+        return true;
+    } catch (error) {
+        console.error('Error updating well tests:', error);
+        return false;
+    }
+}
+
+/**
  * Clear only extracted data from Firestore (preserve manual edits)
  * @param {Function} progressCallback - Optional callback to report progress (message)
  */
