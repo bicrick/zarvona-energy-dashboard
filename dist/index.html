@@ -18,8 +18,8 @@
     <!-- Chart.js for charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <script type="module" crossorigin src="/assets/index-C4kPICYA.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BbiBXtYg.css">
+  <script type="module" crossorigin src="/assets/index-Cue3MKgF.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CtkhXALJ.css">
 </head>
 <body>
     <!-- Auth Loading Splash Screen -->
@@ -379,14 +379,21 @@
                     <section class="card">
                         <div class="card-header-editable">
                             <h3>Well Test Table</h3>
-                            <button class="btn-download-csv" id="btnDownloadWellTests" title="Download as CSV">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                                <span class="btn-label">CSV</span>
-                            </button>
+                            <div class="card-header-actions">
+                                <button class="btn-download-csv" id="btnDownloadWellTests" title="Download as CSV">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    <span class="btn-label">CSV</span>
+                                </button>
+                                <button class="btn-edit" data-edit="wellTests" title="Edit Well Tests">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table id="wellTestTable">
@@ -944,6 +951,113 @@
                                 <!-- Dynamically populated with batteries -->
                             </div>
                         </aside>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Master Chemical Sheet View -->
+            <div id="masterChemicalView" class="view">
+                <header class="view-header">
+                    <h2>Master Chemical Sheet</h2>
+                    <span class="breadcrumb">Chemical programs for all wells</span>
+                </header>
+
+                <div class="master-chemical-container">
+                    <!-- Empty State -->
+                    <div class="master-chemical-empty" id="masterChemicalEmpty">
+                        <div class="empty-state-icon">
+                            <img src="data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!--%20Uploaded%20to:%20SVG%20Repo,%20www.svgrepo.com,%20Generator:%20SVG%20Repo%20Mixer%20Tools%20--%3e%3csvg%20width='800px'%20height='800px'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3crect%20width='24'%20height='24'%20fill='white'/%3e%3cpath%20fill-rule='evenodd'%20clip-rule='evenodd'%20d='M8.95137%203C7.53466%203%207.00572%204.75542%208%205.57453V10.1716C8%2010.4368%207.89464%2010.6911%207.70711%2010.8787L2.87868%2015.7071C2.31607%2016.2697%202%2017.0328%202%2017.8284V18C2%2019.6569%203.34315%2021%205%2021H19C20.6569%2021%2022%2019.6569%2022%2018V17.8284C22%2017.0328%2021.6839%2016.2697%2021.1213%2015.7071L16.2929%2010.8787C16.1054%2010.6911%2016%2010.4368%2016%2010.1716V5.57453C16.9943%204.75542%2016.4653%203%2015.0486%203H8.95137ZM16.5858%2014H7.41421L9.12132%2012.2929C9.68393%2011.7303%2010%2010.9672%2010%2010.1716V5.2847C10%205.18797%209.99045%205.0927%209.97203%205H14.028C14.0096%205.0927%2014%205.18797%2014%205.2847V10.1716C14%2010.9672%2014.3161%2011.7303%2014.8787%2012.2929L16.5858%2014Z'%20fill='%23323232'/%3e%3c/svg%3e" alt="Chemical Beaker" width="64" height="64">
+                        </div>
+                        <h3>No Master Chemical Sheet data available</h3>
+                        <p>Upload the Master Chemical Sheet to view chemical programs for all wells.</p>
+                        <p class="expected-filename">Expected file: <code>Master Chemical Sheet.xlsx</code></p>
+                    </div>
+
+                    <!-- Data View -->
+                    <div class="master-chemical-content" id="masterChemicalContent" style="display: none;">
+                        <!-- Toolbar -->
+                        <div class="master-chemical-toolbar">
+                            <div class="toolbar-left">
+                                <div class="search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <path d="m21 21-4.35-4.35"></path>
+                                    </svg>
+                                    <input type="text" id="chemicalSearchInput" placeholder="Search by well name or battery...">
+                                </div>
+                                <div class="data-stats" id="chemicalDataStats">
+                                    <span class="stat-badge">0 wells</span>
+                                </div>
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="btn-export" id="btnExportChemicalCSV" title="Export to CSV">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Export CSV
+                                </button>
+                                <button class="btn-edit-chemical" id="btnEditChemical" title="Edit chemical values">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button class="btn-save-chemical" id="btnSaveChemical" style="display: none;" title="Save all changes">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                        <polyline points="7 3 7 8 15 8"></polyline>
+                                    </svg>
+                                    Save All Changes
+                                </button>
+                                <button class="btn-cancel-chemical" id="btnCancelChemical" style="display: none;" title="Cancel editing">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                    Cancel
+                                </button>
+                                <span class="changes-indicator" id="chemicalChangesIndicator" style="display: none;"></span>
+                            </div>
+                        </div>
+
+                        <!-- Edit Mode Info Banner -->
+                        <div class="edit-mode-info-banner" id="chemicalEditInfoBanner" style="display: none;">
+                            <div class="info-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                            </div>
+                            <div class="info-content">
+                                <strong>Edit Mode Active</strong>
+                                <p>Click any cell to edit values. Changes are highlighted in yellow. Click "Save All Changes" when done.</p>
+                            </div>
+                            <button class="info-close" id="btnCloseEditInfo" title="Close">×</button>
+                        </div>
+
+                        <!-- Table Container -->
+                        <div class="master-chemical-table-container">
+                            <table class="master-chemical-table" id="masterChemicalTable">
+                                <thead>
+                                    <tr id="chemicalTableHeader">
+                                        <!-- Headers populated dynamically -->
+                                    </tr>
+                                </thead>
+                                <tbody id="chemicalTableBody">
+                                    <!-- Rows populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div class="master-chemical-loading" id="masterChemicalLoading" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <p>Loading chemical data...</p>
+                        </div>
                     </div>
                 </div>
             </div>

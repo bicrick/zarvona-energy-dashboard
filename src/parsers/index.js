@@ -8,6 +8,7 @@ import { MWWemacParser } from './mwwemac.js';
 import { Unit130Parser } from './unit130.js';
 import { ULS35HParser } from './uls35h.js';
 import { MasterChemicalParser } from './master-chemical.js';
+import { FluidLevelParser } from './fluid-level.js';
 
 export const PARSERS = {
     CowdenParser,
@@ -19,7 +20,8 @@ export const PARSERS = {
     MWWemacParser,
     Unit130Parser,
     ULS35HParser,
-    MasterChemicalParser
+    MasterChemicalParser,
+    FluidLevelParser
 };
 
 export {
@@ -32,5 +34,6 @@ export {
     MWWemacParser,
     Unit130Parser,
     ULS35HParser,
-    MasterChemicalParser
+    MasterChemicalParser,
+    FluidLevelParser
 };

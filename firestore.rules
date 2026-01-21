@@ -12,6 +12,12 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
     
+    // Fluid levels collection (from West Texas Fluid Level Sheet)
+    // All authenticated users can read and write (shared data model)
+    match /fluidLevels/{wellId} {
+      allow read, write: if isAuthenticated();
+    }
+    
     // Gauge sheets and all nested collections
     // All authenticated users can read and write (shared data model)
     match /gaugeSheets/{sheetId} {

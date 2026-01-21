@@ -1329,6 +1329,171 @@ export async function loadDataFromFirestore() {
 }
 
 // ============================================================================
+// FLUID LEVELS - SAVE/LOAD FUNCTIONS
+// ============================================================================
+
+/**
+ * Save fluid level data to Firestore
+ * Data structure: fluidLevels/{normalizedWellName}/{ wellName, readings: [] }
+ * Merges new readings with existing ones by date
+ * @param {array} readings - Array of reading objects from parser
+ * @param {Function} progressCallback - Optional callback to report progress (message, percent)
+ * @returns {Promise<boolean>} Success status
+ */
+export async function saveFluidLevelData(readings, progressCallback = null) {
+    try {
+        const logProgress = (message, percent) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message, percent);
+        };
+        
+        logProgress('Organizing fluid level readings by well...', 0);
+        
+        if (!readings || readings.length === 0) {
+            logProgress('No fluid level readings to save', 100);
+            return true;
+        }
+        
+        // Group readings by normalized well name
+        const readingsByWell = {};
+        
+        for (const reading of readings) {
+            const normalizedName = reading.wellName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+            
+            if (!readingsByWell[normalizedName]) {
+                readingsByWell[normalizedName] = {
+                    wellName: reading.wellName,
+                    readings: []
+                };
+            }
+            
+            readingsByWell[normalizedName].readings.push({
+                date: Timestamp.fromDate(new Date(reading.date)),
+                strokeLength: reading.strokeLength,
+                spm: reading.spm,
+                runTime: reading.runTime,
+                gasLiquidLevel: reading.gasLiquidLevel,
+                gasFreeLevel: reading.gasFreeLevel,
+                pumpIntakePressure: reading.pumpIntakePressure
+            });
+        }
+        
+        const wellNames = Object.keys(readingsByWell);
+        const totalWells = wellNames.length;
+        
+        logProgress(`Saving fluid level data for ${totalWells} wells...`, 10);
+        
+        // Save each well's readings (merge with existing)
+        for (let i = 0; i < totalWells; i++) {
+            const normalizedName = wellNames[i];
+            const wellData = readingsByWell[normalizedName];
+            
+            const percent = 10 + Math.floor((i / totalWells) * 80);
+            logProgress(`Saving readings for ${wellData.wellName}...`, percent);
+            
+            const wellRef = doc(db, 'fluidLevels', normalizedName);
+            
+            // Fetch existing readings to merge
+            const existingDoc = await getDoc(wellRef);
+            let existingReadings = [];
+            
+            if (existingDoc.exists()) {
+                existingReadings = existingDoc.data().readings || [];
+            }
+            
+            // Merge readings by date (use Map to prevent duplicates)
+            const readingsMap = new Map();
+            
+            // Add existing readings first
+            for (const reading of existingReadings) {
+                const dateKey = reading.date.toDate().toISOString().split('T')[0];
+                readingsMap.set(dateKey, reading);
+            }
+            
+            // Add/update with new readings
+            for (const reading of wellData.readings) {
+                const dateKey = reading.date.toDate().toISOString().split('T')[0];
+                readingsMap.set(dateKey, reading);
+            }
+            
+            // Convert back to array and sort by date (newest first)
+            const mergedReadings = Array.from(readingsMap.values());
+            mergedReadings.sort((a, b) => {
+                const dateA = a.date.toDate();
+                const dateB = b.date.toDate();
+                return dateB - dateA;
+            });
+            
+            // Save to Firestore
+            await setDoc(wellRef, {
+                wellName: wellData.wellName,
+                normalizedName: normalizedName,
+                readings: mergedReadings,
+                lastUpdated: Timestamp.now()
+            });
+        }
+        
+        logProgress(`Saved fluid level data for ${totalWells} wells successfully`, 100);
+        return true;
+    } catch (error) {
+        console.error('Error saving fluid level data:', error);
+        return false;
+    }
+}
+
+/**
+ * Load all fluid level data from Firestore
+ * @param {Function} progressCallback - Optional callback to report progress (message)
+ * @returns {Promise<object>} Object containing fluid levels keyed by normalized well name
+ */
+export async function loadFluidLevelData(progressCallback = null) {
+    try {
+        const logProgress = (message) => {
+            console.log(message);
+            if (progressCallback) progressCallback(message);
+        };
+        
+        logProgress('Loading fluid level data...');
+        
+        const fluidLevelsColl = collection(db, 'fluidLevels');
+        const snapshot = await getDocs(fluidLevelsColl);
+        
+        const fluidLevels = {};
+        
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            fluidLevels[doc.id] = {
+                wellName: data.wellName,
+                normalizedName: data.normalizedName,
+                readings: data.readings.map(r => ({
+                    date: r.date.toDate(),
+                    strokeLength: r.strokeLength,
+                    spm: r.spm,
+                    runTime: r.runTime,
+                    gasLiquidLevel: r.gasLiquidLevel,
+                    gasFreeLevel: r.gasFreeLevel,
+                    pumpIntakePressure: r.pumpIntakePressure
+                })),
+                lastUpdated: data.lastUpdated?.toDate?.() || data.lastUpdated
+            };
+        });
+        
+        logProgress(`✓ Loaded fluid level data for ${Object.keys(fluidLevels).length} wells`);
+        
+        // Update appState
+        appState.fluidLevels = fluidLevels;
+        
+        return fluidLevels;
+    } catch (error) {
+        console.error('Error loading fluid level data:', error);
+        appState.fluidLevels = {};
+        return {};
+    }
+}
+
+// ============================================================================
 // CHEMICAL PROGRAMS - SAVE/LOAD FUNCTIONS
 // ============================================================================
 

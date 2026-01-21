@@ -5150,3 +5150,204 @@ tbody tr:nth-child(even) {
         justify-content: center;
     }
 }
+
+/* ============================================================================
+   Fluid Levels View
+   ============================================================================ */
+
+.fluid-levels-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Empty State */
+.fluid-levels-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.fluid-levels-empty .empty-state-icon {
+    margin-bottom: 1.5rem;
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.fluid-levels-empty h3 {
+    color: var(--text-primary);
+    margin: 0 0 0.75rem 0;
+    font-size: 1.25rem;
+}
+
+.fluid-levels-empty p {
+    margin: 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+.fluid-levels-empty .expected-filename {
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.fluid-levels-empty code {
+    background-color: var(--bg-tertiary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Content Area */
+.fluid-levels-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Toolbar */
+.fluid-levels-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.fluid-levels-toolbar .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.fluid-levels-toolbar .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Table Container */
+.fluid-levels-table-container {
+    flex: 1;
+    overflow: auto;
+    padding: 1.5rem;
+}
+
+.fluid-levels-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.fluid-levels-table thead {
+    background-color: var(--bg-tertiary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.fluid-levels-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.813rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.fluid-levels-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.938rem;
+}
+
+.fluid-levels-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.fluid-levels-table tbody tr:hover {
+    background-color: var(--hover-bg);
+}
+
+.fluid-levels-table .well-name-cell {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.fluid-levels-table .numeric-cell {
+    text-align: right;
+    font-feature-settings: 'tnum';
+    font-variant-numeric: tabular-nums;
+}
+
+.fluid-levels-table .change-cell {
+    text-align: right;
+    font-weight: 500;
+    font-feature-settings: 'tnum';
+    font-variant-numeric: tabular-nums;
+}
+
+.fluid-levels-table .change-rising {
+    color: #22c55e;
+}
+
+.fluid-levels-table .change-falling {
+    color: #ef4444;
+}
+
+/* Loading State */
+.fluid-levels-loading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+.fluid-levels-loading p {
+    margin-top: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .fluid-levels-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .fluid-levels-toolbar .toolbar-left,
+    .fluid-levels-toolbar .toolbar-right {
+        width: 100%;
+    }
+    
+    .fluid-levels-table-container {
+        padding: 1rem;
+    }
+    
+    .fluid-levels-table {
+        font-size: 0.813rem;
+    }
+    
+    .fluid-levels-table th,
+    .fluid-levels-table td {
+        padding: 0.5rem 0.75rem;
+    }
+}

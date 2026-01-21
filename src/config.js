@@ -8,7 +8,8 @@ export const GAUGE_SHEETS = [
     { id: 'mwwemac', name: 'MW-Wemac-Sabrina-Berkley', fileName: 'Mw-Wemac-Sabrina-Berkley.xlsx', parser: 'MWWemacParser' },
     { id: 'unit130', name: '1-30 Unit 1H', fileName: '1-30 Unit 1H Gauge Sheet.xlsx', parser: 'Unit130Parser' },
     { id: 'uls35h', name: 'ULS 3-5H', fileName: 'ULS 3-5H Gauge Sheet.xlsx', parser: 'ULS35HParser' },
-    { id: 'master-chemical', name: 'Master Chemical Sheet', fileName: 'Master Chemical Sheet.xlsx', parser: 'MasterChemicalParser', isChemicalSheet: true }
+    { id: 'master-chemical', name: 'Master Chemical Sheet', fileName: 'Master Chemical Sheet.xlsx', parser: 'MasterChemicalParser', isChemicalSheet: true },
+    { id: 'fluid-level', name: 'Fluid Levels', fileName: 'West Texas Fluid Level Sheet.xlsx', parser: 'FluidLevelParser', isFluidLevelSheet: true }
 ];
 
 export const STORAGE_KEY = 'oilWellData';
@@ -47,5 +48,7 @@ export const appState = {
     // Dashboard data cache (from optimized queries)
     dashboardData: null,
     // Chemical programs cache (from Master Chemical Sheet)
-    chemicalPrograms: {}  // { normalizedWellName: chemicalData }
+    chemicalPrograms: {},  // { normalizedWellName: chemicalData }
+    // Fluid levels cache (from Fluid Level Sheet)
+    fluidLevels: {}  // { normalizedWellName: { wellName, readings: [] } }
 };

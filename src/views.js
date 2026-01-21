@@ -68,7 +68,8 @@ export function showView(viewName) {
         oilChart: 'oilChartView',
         waterChart: 'waterChartView',
         gasChart: 'gasChartView',
-        masterChemical: 'masterChemicalView'
+        masterChemical: 'masterChemicalView',
+        fluidLevels: 'fluidLevelsView'
     };
 
     const viewId = viewMap[viewName];
@@ -1654,4 +1655,280 @@ function renderPressureCharts(readings) {
             }
         });
     }
+}
+
+// ============================================================================
+// FLUID LEVELS VIEW
+// ============================================================================
+
+/**
+ * Show the Fluid Levels view
+ */
+export async function showFluidLevelsView() {
+    showView('fluidLevels');
+    setActiveNavItem(document.getElementById('nav-fluid-levels'));
+    
+    const emptyState = document.getElementById('fluidLevelsEmpty');
+    const content = document.getElementById('fluidLevelsContent');
+    const loading = document.getElementById('fluidLevelsLoading');
+    
+    // Check if we have fluid level data
+    if (!appState.fluidLevels || Object.keys(appState.fluidLevels).length === 0) {
+        // Try to load from Firestore
+        loading.style.display = 'flex';
+        emptyState.style.display = 'none';
+        content.style.display = 'none';
+        
+        const { loadFluidLevelData } = await import('./firestore-storage.js');
+        await loadFluidLevelData();
+        
+        loading.style.display = 'none';
+    }
+    
+    // Check again after loading
+    if (!appState.fluidLevels || Object.keys(appState.fluidLevels).length === 0) {
+        emptyState.style.display = 'flex';
+        content.style.display = 'none';
+        return;
+    }
+    
+    // Show content and render table
+    emptyState.style.display = 'none';
+    content.style.display = 'block';
+    
+    renderFluidLevelsTable();
+    initializeFluidLevelsHandlers();
+}
+
+/**
+ * Render the fluid levels table
+ */
+function renderFluidLevelsTable(searchTerm = '') {
+    const tableHeader = document.getElementById('fluidLevelsTableHeader');
+    const tableBody = document.getElementById('fluidLevelsTableBody');
+    const statsEl = document.getElementById('fluidLevelsDataStats');
+    
+    // Get all dashboard wells (from appState.appData)
+    const dashboardWells = [];
+    Object.keys(appState.appData).forEach(sheetId => {
+        const sheet = appState.appData[sheetId];
+        if (sheet && sheet.wells) {
+            sheet.wells.forEach(well => {
+                if (well.status !== 'inactive') {
+                    dashboardWells.push({
+                        name: well.name,
+                        id: well.id,
+                        sheetId: sheetId
+                    });
+                }
+            });
+        }
+    });
+    
+    // Match fluid level data to dashboard wells
+    const matchedData = [];
+    
+    for (const well of dashboardWells) {
+        const normalized = well.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fluidData = appState.fluidLevels[normalized];
+        
+        if (fluidData && fluidData.readings && fluidData.readings.length > 0) {
+            // Sort readings by date (newest first)
+            const sortedReadings = [...fluidData.readings].sort((a, b) => 
+                new Date(b.date) - new Date(a.date)
+            );
+            
+            const latest = sortedReadings[0];
+            const prior = sortedReadings[1] || null;
+            
+            // Calculate change in Gas Free Level if we have both readings
+            let change = null;
+            let changeDirection = null;
+            if (prior && latest.gasFreeLevel !== null && prior.gasFreeLevel !== null) {
+                change = latest.gasFreeLevel - prior.gasFreeLevel;
+                changeDirection = change > 0 ? 'rising' : change < 0 ? 'falling' : 'stable';
+            }
+            
+            matchedData.push({
+                wellName: well.name,
+                latestDate: latest.date,
+                latestGasFreeLevel: latest.gasFreeLevel,
+                priorGasFreeLevel: prior ? prior.gasFreeLevel : null,
+                change: change,
+                changeDirection: changeDirection,
+                strokeLength: latest.strokeLength,
+                spm: latest.spm,
+                runTime: latest.runTime,
+                pumpIntakePressure: latest.pumpIntakePressure
+            });
+        }
+    }
+    
+    // Apply search filter
+    let filteredData = matchedData;
+    if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        filteredData = matchedData.filter(row => 
+            row.wellName.toLowerCase().includes(searchLower)
+        );
+    }
+    
+    // Sort by well name (grouped by battery)
+    filteredData.sort((a, b) => a.wellName.localeCompare(b.wellName));
+    
+    // Update stats
+    statsEl.innerHTML = `<span class="stat-badge">${filteredData.length} wells</span>`;
+    
+    // Render table header
+    tableHeader.innerHTML = `
+        <th>Well Name</th>
+        <th>Last Reading</th>
+        <th>Gas Free Level (ft)</th>
+        <th>Prior Level (ft)</th>
+        <th>Change</th>
+        <th>Stroke</th>
+        <th>SPM</th>
+        <th>Run Time</th>
+        <th>Pump Intake (psi)</th>
+    `;
+    
+    // Render table body
+    if (filteredData.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    ${searchTerm ? 'No wells found matching your search' : 'No fluid level data available for dashboard wells'}
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tableBody.innerHTML = filteredData.map(row => {
+        const changeText = row.change !== null 
+            ? `${row.change > 0 ? '+' : ''}${row.change.toFixed(0)} ft`
+            : '-';
+        
+        const changeClass = row.changeDirection === 'rising' ? 'change-rising' 
+                          : row.changeDirection === 'falling' ? 'change-falling' 
+                          : '';
+        
+        const changeIndicator = row.changeDirection === 'rising' ? ' ↑' 
+                              : row.changeDirection === 'falling' ? ' ↓' 
+                              : '';
+        
+        return `
+            <tr>
+                <td class="well-name-cell">${row.wellName}</td>
+                <td>${formatDate(row.latestDate)}</td>
+                <td class="numeric-cell">${row.latestGasFreeLevel !== null ? row.latestGasFreeLevel.toFixed(0) : '-'}</td>
+                <td class="numeric-cell">${row.priorGasFreeLevel !== null ? row.priorGasFreeLevel.toFixed(0) : '-'}</td>
+                <td class="change-cell ${changeClass}">${changeText}${changeIndicator}</td>
+                <td>${row.strokeLength || '-'}</td>
+                <td class="numeric-cell">${row.spm !== null ? row.spm.toFixed(1) : '-'}</td>
+                <td>${row.runTime || '-'}</td>
+                <td class="numeric-cell">${row.pumpIntakePressure !== null ? row.pumpIntakePressure.toFixed(0) : '-'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * Initialize event handlers for the Fluid Levels view
+ */
+function initializeFluidLevelsHandlers() {
+    // Search input
+    const searchInput = document.getElementById('fluidLevelsSearchInput');
+    if (searchInput) {
+        // Remove existing listener by cloning
+        const newSearch = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearch, searchInput);
+        
+        newSearch.addEventListener('input', (e) => {
+            renderFluidLevelsTable(e.target.value);
+        });
+    }
+    
+    // Export CSV button
+    const exportBtn = document.getElementById('btnExportFluidLevelsCSV');
+    if (exportBtn) {
+        // Remove existing listener by cloning
+        const newBtn = exportBtn.cloneNode(true);
+        exportBtn.parentNode.replaceChild(newBtn, exportBtn);
+        
+        newBtn.addEventListener('click', () => {
+            exportFluidLevelsCSV();
+        });
+    }
+}
+
+/**
+ * Export fluid levels data to CSV
+ */
+function exportFluidLevelsCSV() {
+    // Get all dashboard wells
+    const dashboardWells = [];
+    Object.keys(appState.appData).forEach(sheetId => {
+        const sheet = appState.appData[sheetId];
+        if (sheet && sheet.wells) {
+            sheet.wells.forEach(well => {
+                if (well.status !== 'inactive') {
+                    dashboardWells.push({
+                        name: well.name,
+                        id: well.id,
+                        sheetId: sheetId
+                    });
+                }
+            });
+        }
+    });
+    
+    // Match fluid level data to dashboard wells
+    const csvData = [];
+    
+    for (const well of dashboardWells) {
+        const normalized = well.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fluidData = appState.fluidLevels[normalized];
+        
+        if (fluidData && fluidData.readings && fluidData.readings.length > 0) {
+            const sortedReadings = [...fluidData.readings].sort((a, b) => 
+                new Date(b.date) - new Date(a.date)
+            );
+            
+            const latest = sortedReadings[0];
+            const prior = sortedReadings[1] || null;
+            
+            let change = null;
+            if (prior && latest.gasFreeLevel !== null && prior.gasFreeLevel !== null) {
+                change = latest.gasFreeLevel - prior.gasFreeLevel;
+            }
+            
+            csvData.push({
+                'wellname': well.name,
+                'lastreading': formatDateForCSV(latest.date),
+                'gasfreelevel': latest.gasFreeLevel !== null ? latest.gasFreeLevel.toFixed(0) : '',
+                'priorlevel': prior && prior.gasFreeLevel !== null ? prior.gasFreeLevel.toFixed(0) : '',
+                'change': change !== null ? change.toFixed(0) : '',
+                'strokelength': latest.strokeLength || '',
+                'spm': latest.spm !== null ? latest.spm.toFixed(1) : '',
+                'runtime': latest.runTime || '',
+                'pumpintakepressure': latest.pumpIntakePressure !== null ? latest.pumpIntakePressure.toFixed(0) : ''
+            });
+        }
+    }
+    
+    const headers = [
+        'Well Name',
+        'Last Reading',
+        'Gas Free Level (ft)',
+        'Prior Level (ft)',
+        'Change (ft)',
+        'Stroke Length',
+        'SPM',
+        'Run Time',
+        'Pump Intake Pressure (psi)'
+    ];
+    
+    const filename = `Fluid_Levels_${new Date().toISOString().split('T')[0]}.csv`;
+    downloadCSV(csvData, headers, filename);
 }

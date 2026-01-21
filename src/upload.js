@@ -1,7 +1,7 @@
 import { GAUGE_SHEETS, appState } from './config.js';
-import { saveSheetToFirestore, fetchSheetFromFirestore, loadNavigationData, loadDashboardData, saveChemicalProgramData, loadChemicalProgramData, matchChemicalProgramsToExistingWells } from './firestore-storage.js';
+import { saveSheetToFirestore, fetchSheetFromFirestore, loadNavigationData, loadDashboardData, saveChemicalProgramData, loadChemicalProgramData, matchChemicalProgramsToExistingWells, saveFluidLevelData, loadFluidLevelData } from './firestore-storage.js';
 import { refreshNavigation } from './navigation.js';
-import { showGaugeSheetView, showWellView, showMasterChemicalView } from './views.js';
+import { showGaugeSheetView, showWellView, showMasterChemicalView, showFluidLevelsView } from './views.js';
 import { PARSERS } from './parsers/index.js';
 import { mergeSheetData } from './data-merge.js';
 
@@ -82,8 +82,40 @@ async function processUploadedFile(file) {
 
         const data = parser.parse(workbook);
         
-        // Check if this is a chemical sheet
-        if (sheetConfig.isChemicalSheet) {
+        // Check if this is a fluid level sheet
+        if (sheetConfig.isFluidLevelSheet) {
+            progressFill.style.width = '15%';
+            progressText.textContent = 'Saving fluid level data...';
+            
+            // Count unique wells before saving
+            const uniqueWells = new Set(data.readings.map(r => r.wellName.toLowerCase().replace(/[^a-z0-9]/g, '')));
+            const wellCount = uniqueWells.size;
+            
+            await saveFluidLevelData(data.readings, (message, percent) => {
+                const overallPercent = 15 + Math.floor((percent / 100) * 60);
+                progressFill.style.width = `${overallPercent}%`;
+                progressText.textContent = message;
+            });
+            
+            progressFill.style.width = '75%';
+            progressText.textContent = 'Reloading fluid level data...';
+            await loadFluidLevelData();
+            
+            progressFill.style.width = '90%';
+            progressText.textContent = 'Refreshing views...';
+            
+            // Refresh the Fluid Levels view
+            showFluidLevelsView();
+            
+            progressFill.style.width = '100%';
+            progressText.textContent = `Complete! ${data.readings.length} readings saved for ${wellCount} wells`;
+            
+            setTimeout(() => {
+                progress.style.display = 'none';
+                progressFill.style.width = '0%';
+                refreshNavigation();
+            }, 2000);
+        } else if (sheetConfig.isChemicalSheet) {
             progressFill.style.width = '15%';
             progressText.textContent = 'Saving chemical programs...';
             
@@ -258,14 +290,31 @@ async function processBulkUpload(files) {
             continue;
         }
 
-        try {
+            try {
             const arrayBuffer = await file.arrayBuffer();
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
             const data = parser.parse(workbook);
 
-            // Check if this is a chemical sheet
-            if (sheetConfig.isChemicalSheet) {
-                // Handle chemical sheet differently
+            // Check if this is a fluid level sheet
+            if (sheetConfig.isFluidLevelSheet) {
+                // Count unique wells before saving
+                const uniqueWells = new Set(data.readings.map(r => r.wellName.toLowerCase().replace(/[^a-z0-9]/g, '')));
+                const wellCount = uniqueWells.size;
+                
+                await saveFluidLevelData(data.readings, (message, percent) => {
+                    progressText.textContent = message;
+                });
+                
+                // Reload fluid level data into appState
+                await loadFluidLevelData();
+                
+                resultItems.push({
+                    name: sheetConfig.name,
+                    status: 'success',
+                    detail: `${data.readings.length} readings saved for ${wellCount} wells`
+                });
+            } else if (sheetConfig.isChemicalSheet) {
+                // Handle chemical sheet
                 await saveChemicalProgramData(data.chemicalPrograms, (message, percent) => {
                     progressText.textContent = message;
                 });
@@ -375,6 +424,19 @@ async function processBulkUpload(files) {
             // Also refresh the current well view if viewing a well
             if (appState.currentSheet && appState.currentWell) {
                 showWellView(appState.currentSheet, appState.currentWell);
+            }
+        }
+        
+        // If fluid level data was uploaded, refresh Fluid Levels view
+        const fluidLevelSheetUploaded = resultItems.some(item => 
+            item.name.includes('Fluid') && item.status === 'success'
+        );
+        
+        if (fluidLevelSheetUploaded) {
+            // Refresh the Fluid Levels view if it's currently active
+            const fluidLevelsView = document.getElementById('fluidLevelsView');
+            if (fluidLevelsView && fluidLevelsView.classList.contains('active')) {
+                showFluidLevelsView();
             }
         }
     }, 500);
