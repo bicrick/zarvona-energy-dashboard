@@ -1095,6 +1095,9 @@ function renderWellTestTable(wellTests) {
         return;
     }
 
+    // Sort by date descending (newest first)
+    validTests.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     tbody.innerHTML = validTests.map(test => {
         const gas = test.gas !== null ? Math.round(Math.max(0, test.gas) * 100) / 100 : null;
         return `
@@ -1350,7 +1353,10 @@ function renderPressureTable(readings) {
         return;
     }
 
-    tbody.innerHTML = readings.map(r => `
+    // Sort by date descending (newest first)
+    const sortedReadings = [...readings].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    tbody.innerHTML = sortedReadings.map(r => `
         <tr>
             <td>${formatDate(r.date)}</td>
             <td>${r.casingPsi || '-'}</td>
