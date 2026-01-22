@@ -1,5 +1,5 @@
 import { appState, GAUGE_SHEETS } from './config.js';
-import { formatDate } from './utils.js';
+import { formatDate, escapeHtml } from './utils.js';
 import { renderProductionCharts } from './charts/production.js';
 import { initializeEditHandlers } from './edit-modal.js';
 import { renderDashboard } from './dashboard.js';
@@ -897,6 +897,7 @@ export async function showWellView(sheetId, wellId) {
     renderChemicalProgram(well.chemicalProgram || {}, matchedChemicalProgram, well.name);
     renderFailureHistory(well.failureHistory || []);
     renderActionList('wellActionList', well.actionItems || []);
+    renderCompletedActions(well.completedActions || []);
     renderPressureTable(well.pressureReadings || []);
     renderPressureCharts(well.pressureReadings || []);
 
@@ -1350,7 +1351,99 @@ function renderActionList(elementId, items) {
         list.innerHTML = '<li style="border-left-color: #6b7280; opacity: 0.7;">No action items</li>';
         return;
     }
-    list.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+    
+    list.innerHTML = items.map((item, index) => {
+        // Handle both old string format and new object format
+        const isString = typeof item === 'string';
+        const text = isString ? item : item.text;
+        const completed = isString ? false : (item.completed || false);
+        const completedDate = !isString && item.completedDate ? (item.completedDate.toDate?.() || new Date(item.completedDate)) : null;
+        const completedBy = !isString && item.completedBy ? item.completedBy : null;
+        
+        const completedClass = completed ? 'action-item-completed' : '';
+        const completedBtnClass = completed ? 'action-complete-btn-checked' : '';
+        const completedTitle = completed ? 'Mark as incomplete' : 'Mark as completed';
+        
+        let completionMeta = '';
+        if (completed && completedDate) {
+            const formattedDate = formatDate(completedDate);
+            completionMeta = `
+                <div class="action-completion-meta">
+                    <span class="completion-date">${formattedDate}</span>
+                    ${completedBy ? `<span class="completion-by">by ${completedBy}</span>` : ''}
+                </div>
+            `;
+        }
+        
+        return `
+            <li class="action-item-with-checkbox ${completedClass}">
+                <button class="action-complete-btn ${completedBtnClass}" data-item-index="${index}" title="${completedTitle}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </button>
+                <div class="action-item-content">
+                    <span class="action-item-text">${escapeHtml(text)}</span>
+                    ${completionMeta}
+                </div>
+            </li>
+        `;
+    }).join('');
+    
+    // Attach event listeners to completion buttons
+    list.querySelectorAll('.action-complete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const itemIndex = parseInt(btn.dataset.itemIndex);
+            await handleToggleActionCompletion(itemIndex);
+        });
+    });
+}
+
+function renderCompletedActions(completedActions) {
+    // This function is no longer needed as completed items are shown inline
+    // Keeping it for backwards compatibility but making it a no-op
+    const list = document.getElementById('completedActionList');
+    if (!list) return;
+    
+    // Hide the completed actions section since we're showing them inline
+    const completedSection = list.closest('.completed-actions-card');
+    if (completedSection) {
+        completedSection.style.display = 'none';
+    }
+}
+
+async function handleToggleActionCompletion(itemIndex) {
+    if (!appState.currentSheet || !appState.currentWell) {
+        alert('Unable to toggle action item. Please try again.');
+        return;
+    }
+    
+    const { toggleActionItemCompletion } = await import('./firestore-storage.js');
+    const { getCurrentUser } = await import('./auth.js');
+    
+    const currentUser = getCurrentUser();
+    const completedBy = currentUser?.email || 'Unknown User';
+    
+    const success = await toggleActionItemCompletion(
+        appState.currentSheet,
+        appState.currentWell,
+        itemIndex,
+        completedBy
+    );
+    
+    if (success) {
+        const { loadWellDetails } = await import('./firestore-storage.js');
+        await loadWellDetails(appState.currentSheet, appState.currentWell);
+        
+        const sheetData = appState.appData[appState.currentSheet];
+        const well = sheetData.wells.find(w => w.id === appState.currentWell);
+        if (well) {
+            renderActionList('wellActionList', well.actionItems || []);
+        }
+    } else {
+        alert('Failed to toggle action item. Please try again.');
+    }
 }
 
 function renderPressureTable(readings) {

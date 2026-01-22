@@ -300,17 +300,27 @@ function renderActionItemsForm(data) {
     let itemsHtml = '';
 
     if (data.length > 0) {
-        itemsHtml = data.map((item, index) => `
-            <div class="action-item-row" data-item-index="${index}">
-                <input type="text" class="edit-form-input" name="actionItem" value="${escapeHtml(item)}">
-                <button type="button" class="btn-delete-item" title="Delete item">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-        `).join('');
+        itemsHtml = data.map((item, index) => {
+            // Handle both old string format and new object format
+            const isString = typeof item === 'string';
+            const text = isString ? item : item.text;
+            const completed = isString ? false : (item.completed || false);
+            
+            const completedBadge = completed ? '<span class="edit-completed-badge">Completed</span>' : '';
+            
+            return `
+                <div class="action-item-row" data-item-index="${index}">
+                    <input type="text" class="edit-form-input" name="actionItem" value="${escapeHtml(text)}">
+                    ${completedBadge}
+                    <button type="button" class="btn-delete-item" title="Delete item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }).join('');
     } else {
         itemsHtml = '<div class="action-items-empty">No action items. Add one below.</div>';
     }
@@ -689,13 +699,32 @@ function readFailureHistoryForm() {
 
 function readActionItemsForm() {
     const editor = document.getElementById('actionItemsEditor');
-    const inputs = editor.querySelectorAll('input[name="actionItem"]');
+    const rows = editor.querySelectorAll('.action-item-row');
     const data = [];
+    
+    // Get original action items to preserve completion status
+    const sheetData = appState.appData[appState.currentSheet];
+    const well = sheetData?.wells.find(w => w.id === appState.currentWell);
+    const originalItems = well?.actionItems || [];
 
-    inputs.forEach(input => {
-        const value = input.value.trim();
+    rows.forEach((row, index) => {
+        const input = row.querySelector('input[name="actionItem"]');
+        const value = input?.value.trim();
         if (value) {
-            data.push(value);
+            // Check if this is an existing item with completion status
+            const originalItem = originalItems[index];
+            if (originalItem && typeof originalItem === 'object') {
+                // Preserve the completion status and metadata
+                data.push({
+                    text: value,
+                    completed: originalItem.completed || false,
+                    completedDate: originalItem.completedDate || null,
+                    completedBy: originalItem.completedBy || null
+                });
+            } else {
+                // New item or old string format - just store as string
+                data.push(value);
+            }
         }
     });
 

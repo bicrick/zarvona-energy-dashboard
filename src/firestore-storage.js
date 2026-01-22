@@ -174,7 +174,8 @@ async function saveWellToFirestore(sheetId, wellData, fullReplace = false) {
             pressureReadings: wellData.pressureReadings || [],
             chemicalProgram: wellData.chemicalProgram || {},
             failureHistory: wellData.failureHistory || [],
-            actionItems: wellData.actionItems || []
+            actionItems: wellData.actionItems || [],
+            completedActions: wellData.completedActions || []
         }, { merge: true });
         
         // Save production data incrementally
@@ -446,6 +447,7 @@ export async function loadNavigationData(progressCallback = null) {
                     chemicalProgram: wellData.chemicalProgram || {},
                     failureHistory: wellData.failureHistory || [],
                     actionItems: wellData.actionItems || [],
+                    completedActions: wellData.completedActions || [],
                     production: [],  // Will lazy-load when viewing well
                     wellTests: [],   // Will lazy-load when viewing well
                     _detailsLoaded: false
@@ -629,6 +631,7 @@ export async function loadWellDetails(sheetId, wellId) {
                 chemicalProgram: wellData.chemicalProgram || {},
                 failureHistory: wellData.failureHistory || [],
                 actionItems: wellData.actionItems || [],
+                completedActions: wellData.completedActions || [],
                 _detailsLoaded: false
             };
             sheetData.wells.push(well);
@@ -665,6 +668,7 @@ export async function loadWellDetails(sheetId, wellId) {
             well.chemicalProgram = wellData.chemicalProgram || {};
             well.failureHistory = wellData.failureHistory || [];
             well.actionItems = wellData.actionItems || [];
+            well.completedActions = wellData.completedActions || [];
             well.status = wellData.status || 'active';
         }
         
@@ -767,6 +771,7 @@ export async function fetchSheetFromFirestore(sheetId) {
                 chemicalProgram: wellData.chemicalProgram || {},
                 failureHistory: wellData.failureHistory || [],
                 actionItems: wellData.actionItems || [],
+                completedActions: wellData.completedActions || [],
                 production: [],  // Don't load production history for merge
                 wellTests: []    // Don't load well tests for merge
             };
@@ -1316,6 +1321,94 @@ export async function deleteFailureHistoryEntry(sheetId, wellId, failureId) {
         return true;
     } catch (error) {
         console.error('Error deleting failure history entry:', error);
+        return false;
+    }
+}
+
+/**
+ * Toggle completion status of an action item
+ * @param {string} sheetId - The gauge sheet ID
+ * @param {string} wellId - The well ID
+ * @param {number} itemIndex - Index of the action item to toggle
+ * @param {string} completedBy - Email of user who completed the action
+ * @returns {Promise<boolean>} Success status
+ */
+export async function toggleActionItemCompletion(sheetId, wellId, itemIndex, completedBy) {
+    try {
+        const wellRef = doc(db, `gaugeSheets/${sheetId}/wells`, wellId);
+        const wellDoc = await getDoc(wellRef);
+        
+        if (!wellDoc.exists()) {
+            console.error(`Well ${wellId} not found in sheet ${sheetId}`);
+            return false;
+        }
+        
+        const wellData = wellDoc.data();
+        const currentActionItems = wellData.actionItems || [];
+        
+        if (itemIndex < 0 || itemIndex >= currentActionItems.length) {
+            console.error(`Invalid action item index: ${itemIndex}`);
+            return false;
+        }
+        
+        // Get the action item
+        const actionItem = currentActionItems[itemIndex];
+        
+        // Handle both old string format and new object format
+        let updatedActionItems = [...currentActionItems];
+        
+        if (typeof actionItem === 'string') {
+            // Convert old format to new format and mark as completed
+            updatedActionItems[itemIndex] = {
+                text: actionItem,
+                completed: true,
+                completedDate: Timestamp.now(),
+                completedBy: completedBy
+            };
+        } else {
+            // Toggle completion status
+            if (actionItem.completed) {
+                // Uncomplete: remove completion metadata
+                updatedActionItems[itemIndex] = {
+                    text: actionItem.text,
+                    completed: false,
+                    completedDate: null,
+                    completedBy: null
+                };
+            } else {
+                // Complete: add completion metadata
+                updatedActionItems[itemIndex] = {
+                    ...actionItem,
+                    completed: true,
+                    completedDate: Timestamp.now(),
+                    completedBy: completedBy
+                };
+            }
+        }
+        
+        // Check if there are any active (non-completed) action items
+        const hasActiveItems = updatedActionItems.some(item => 
+            typeof item === 'string' || !item.completed
+        );
+        
+        // Update Firestore
+        const updates = {
+            actionItems: updatedActionItems,
+            hasActionItems: hasActiveItems
+        };
+        
+        await setDoc(wellRef, updates, { merge: true });
+        
+        // Update local state
+        const well = appState.appData[sheetId]?.wells.find(w => w.id === wellId);
+        if (well) {
+            well.actionItems = updatedActionItems;
+            well.hasActionItems = hasActiveItems;
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error toggling action item completion:', error);
         return false;
     }
 }

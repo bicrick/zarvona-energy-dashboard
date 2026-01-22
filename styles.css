@@ -1692,6 +1692,96 @@ tbody tr:nth-child(even) {
     text-align: center;
 }
 
+/* Action Items with Completion Button */
+.action-item-with-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.action-item-with-checkbox::before {
+    display: none;
+}
+
+.action-complete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.action-complete-btn:hover {
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.action-complete-btn-checked {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.action-complete-btn-checked:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: transparent;
+}
+
+.action-item-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.action-item-text {
+    line-height: 1.5;
+}
+
+/* Completed Action Item Styling */
+.action-item-completed {
+    opacity: 0.65;
+}
+
+.action-item-completed .action-item-text {
+    text-decoration: line-through;
+    color: var(--text-secondary);
+}
+
+.action-completion-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.action-completion-meta .completion-date {
+    font-weight: 500;
+    color: var(--success);
+}
+
+.action-completion-meta .completion-by {
+    opacity: 0.9;
+}
+
+/* Completed Actions Card - Hidden since we show inline */
+.completed-actions-card {
+    display: none;
+}
+
 /* Reason badge in failure table */
 .reason-badge {
     display: inline-block;
@@ -3264,6 +3354,20 @@ tbody tr:nth-child(even) {
     cursor: pointer;
     transition: all 0.2s ease;
     flex-shrink: 0;
+}
+
+.edit-completed-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: var(--success);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    opacity: 0.9;
 }
 
 .action-item-row .btn-delete-item:hover {
