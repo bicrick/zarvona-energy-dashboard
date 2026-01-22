@@ -52,10 +52,14 @@ export function initializeNavigation() {
     navTree.appendChild(homeSection);
 
     const chemicalSection = createNavSection('Chemical Programs', 'chemical-section', [
-        { id: 'nav-master-chemical', label: 'Master Chemical Sheet', icon: 'chemical', action: () => showMasterChemicalView() },
-        { id: 'nav-fluid-levels', label: 'Fluid Levels', icon: 'fluidLevel', action: () => showFluidLevelsView() }
+        { id: 'nav-master-chemical', label: 'Master Chemical Sheet', icon: 'chemical', action: () => showMasterChemicalView() }
     ]);
     navTree.appendChild(chemicalSection);
+
+    const fluidLevelsSection = createNavSection('Fluid Levels', 'fluid-levels-section', [
+        { id: 'nav-fluid-levels', label: 'Fluid Levels', icon: 'fluidLevel', action: () => showFluidLevelsView() }
+    ]);
+    navTree.appendChild(fluidLevelsSection);
 
     const wellsSection = createWellsSection();
     navTree.appendChild(wellsSection);
