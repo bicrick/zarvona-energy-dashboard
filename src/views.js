@@ -1858,10 +1858,16 @@ export async function showFluidLevelsView() {
     initializeFluidLevelsHandlers();
 }
 
+// Track current sort state for fluid levels table
+let fluidLevelsCurrentSort = 'wellName-asc';
+
 /**
  * Render the fluid levels table
  */
-function renderFluidLevelsTable(searchTerm = '') {
+function renderFluidLevelsTable(searchTerm = '', sortBy = null) {
+    // Use provided sort or current sort state
+    const activeSort = sortBy || fluidLevelsCurrentSort;
+    fluidLevelsCurrentSort = activeSort;
     const tableHeader = document.getElementById('fluidLevelsTableHeader');
     const tableBody = document.getElementById('fluidLevelsTableBody');
     const statsEl = document.getElementById('fluidLevelsDataStats');
@@ -1934,24 +1940,48 @@ function renderFluidLevelsTable(searchTerm = '') {
         );
     }
     
-    // Sort by well name (grouped by battery)
-    filteredData.sort((a, b) => a.wellName.localeCompare(b.wellName));
+    // Apply sorting
+    filteredData = applyFluidLevelsSort(filteredData, activeSort);
     
     // Update stats
     statsEl.innerHTML = `<span class="stat-badge">${filteredData.length} wells</span>`;
     
-    // Render table header
+    // Parse sortBy to determine which column is active
+    const [sortColumn, sortDirection] = activeSort.split('-');
+    
+    // Render table header with sort indicators
+    const getSortClass = (column) => {
+        if (column !== sortColumn) return 'sortable';
+        return `sortable sort-${sortDirection}`;
+    };
+    
     tableHeader.innerHTML = `
-        <th>Well Name</th>
-        <th>Last Reading</th>
-        <th>Gas Free Level (ft)</th>
-        <th>Prior Level (ft)</th>
-        <th>Change</th>
+        <th class="${getSortClass('wellName')}" data-sort="wellName-asc">Well Name</th>
+        <th class="${getSortClass('latestDate')}" data-sort="latestDate-desc">Last Reading</th>
+        <th class="${getSortClass('latestGasFreeLevel')}" data-sort="latestGasFreeLevel-desc">Gas Free Level (ft)</th>
+        <th class="${getSortClass('priorGasFreeLevel')}" data-sort="priorGasFreeLevel-desc">Prior Level (ft)</th>
+        <th class="${getSortClass('change')}" data-sort="change-desc">Change</th>
         <th>Stroke</th>
-        <th>SPM</th>
-        <th>Run Time</th>
-        <th>Pump Intake (psi)</th>
+        <th class="${getSortClass('spm')}" data-sort="spm-desc">SPM</th>
+        <th class="${getSortClass('runTime')}" data-sort="runTime-desc">Run Time</th>
+        <th class="${getSortClass('pumpIntakePressure')}" data-sort="pumpIntakePressure-desc">Pump Intake (psi)</th>
     `;
+    
+    // Add click handlers to sortable headers
+    const sortableHeaders = tableHeader.querySelectorAll('.sortable');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const currentSort = header.getAttribute('data-sort');
+            const [col, dir] = currentSort.split('-');
+            // Toggle direction if clicking the same column, otherwise use the default direction from data-sort
+            let newDirection = dir;
+            if (col === sortColumn) {
+                newDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            }
+            fluidLevelsCurrentSort = `${col}-${newDirection}`;
+            renderFluidLevelsTable(searchTerm, fluidLevelsCurrentSort);
+        });
+    });
     
     // Render table body
     if (filteredData.length === 0) {
@@ -2006,6 +2036,89 @@ function renderFluidLevelsTable(searchTerm = '') {
     
     // Add click handlers for navigation
     attachFluidLevelsRowClickHandlers();
+}
+
+/**
+ * Apply sorting to fluid levels data
+ */
+function applyFluidLevelsSort(data, sortBy) {
+    const [column, direction] = sortBy.split('-');
+    const isAsc = direction === 'asc';
+    
+    const sorted = [...data].sort((a, b) => {
+        let aVal, bVal;
+        
+        switch (column) {
+            case 'wellName':
+                aVal = a.wellName;
+                bVal = b.wellName;
+                return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            
+            case 'change':
+                // Handle null values - put them at the end
+                if (a.change === null && b.change === null) return 0;
+                if (a.change === null) return 1;
+                if (b.change === null) return -1;
+                aVal = a.change;
+                bVal = b.change;
+                return isAsc ? aVal - bVal : bVal - aVal;
+            
+            case 'latestGasFreeLevel':
+                // Handle null values - put them at the end
+                if (a.latestGasFreeLevel === null && b.latestGasFreeLevel === null) return 0;
+                if (a.latestGasFreeLevel === null) return 1;
+                if (b.latestGasFreeLevel === null) return -1;
+                aVal = a.latestGasFreeLevel;
+                bVal = b.latestGasFreeLevel;
+                return isAsc ? aVal - bVal : bVal - aVal;
+            
+            case 'priorGasFreeLevel':
+                // Handle null values - put them at the end
+                if (a.priorGasFreeLevel === null && b.priorGasFreeLevel === null) return 0;
+                if (a.priorGasFreeLevel === null) return 1;
+                if (b.priorGasFreeLevel === null) return -1;
+                aVal = a.priorGasFreeLevel;
+                bVal = b.priorGasFreeLevel;
+                return isAsc ? aVal - bVal : bVal - aVal;
+            
+            case 'latestDate':
+                aVal = new Date(a.latestDate);
+                bVal = new Date(b.latestDate);
+                return isAsc ? aVal - bVal : bVal - aVal;
+            
+            case 'spm':
+                // Handle null values - put them at the end
+                if (a.spm === null && b.spm === null) return 0;
+                if (a.spm === null) return 1;
+                if (b.spm === null) return -1;
+                aVal = a.spm;
+                bVal = b.spm;
+                return isAsc ? aVal - bVal : bVal - aVal;
+            
+            case 'runTime':
+                // Handle null values - put them at the end
+                if (a.runTime === null && b.runTime === null) return 0;
+                if (a.runTime === null) return 1;
+                if (b.runTime === null) return -1;
+                aVal = a.runTime;
+                bVal = b.runTime;
+                return isAsc ? aVal - bVal : bVal - aVal;
+            
+            case 'pumpIntakePressure':
+                // Handle null values - put them at the end
+                if (a.pumpIntakePressure === null && b.pumpIntakePressure === null) return 0;
+                if (a.pumpIntakePressure === null) return 1;
+                if (b.pumpIntakePressure === null) return -1;
+                aVal = a.pumpIntakePressure;
+                bVal = b.pumpIntakePressure;
+                return isAsc ? aVal - bVal : bVal - aVal;
+            
+            default:
+                return 0;
+        }
+    });
+    
+    return sorted;
 }
 
 /**
