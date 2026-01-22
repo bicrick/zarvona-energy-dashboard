@@ -72,7 +72,8 @@ function openEditModal(section) {
         failureHistory: 'Edit Failure History',
         actionItems: 'Edit Action Items',
         pressureReadings: 'Edit Pressure Readings',
-        wellTests: 'Edit Well Tests'
+        wellTests: 'Edit Well Tests',
+        fluidLevels: 'Edit Fluid Levels'
     };
     title.textContent = titles[section] || 'Edit';
 
@@ -95,6 +96,10 @@ function openEditModal(section) {
         case 'wellTests':
             body.innerHTML = renderWellTestForm(well.wellTests || []);
             initializeWellTestHandlers();
+            break;
+        case 'fluidLevels':
+            body.innerHTML = renderFluidLevelsForm(well.name);
+            initializeFluidLevelsHandlers();
             break;
     }
 
@@ -610,6 +615,16 @@ async function saveEditedData() {
                 onEditSave(appState.currentSheet, appState.currentWell);
             }
             return; // Early return - updateWellTests handles everything
+        case 'fluidLevels':
+            // Fluid levels are handled separately - stored in fluidLevels collection
+            const editedFluidLevels = readFluidLevelsForm();
+            const { updateFluidLevelReadings } = await import('./firestore-storage.js');
+            await updateFluidLevelReadings(editedFluidLevels);
+            closeEditModal();
+            if (onEditSave) {
+                onEditSave(appState.currentSheet, appState.currentWell);
+            }
+            return; // Early return - updateFluidLevelReadings handles everything
     }
 
     // Save to Firestore (for non-wellTests cases)
@@ -779,4 +794,106 @@ function readPressureReadingsForm() {
     });
 
     return data;
+}
+
+function renderFluidLevelsForm(wellName) {
+    // Normalize well name to match fluid level data
+    const normalized = wellName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const fluidData = appState.fluidLevels?.[normalized];
+    
+    if (!fluidData || !fluidData.readings || fluidData.readings.length === 0) {
+        return `<p style="text-align: center; padding: 2rem; color: var(--text-secondary);">No fluid level data available for this well</p>`;
+    }
+    
+    // Sort readings by date descending (newest first)
+    const sortedReadings = [...fluidData.readings].sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+    );
+    
+    let rowsHtml = '';
+    
+    if (sortedReadings.length > 0) {
+        rowsHtml = sortedReadings.map((reading, index) => {
+            const runTimePercent = reading.runTime !== null 
+                ? (reading.runTime * 100).toFixed(0)
+                : '';
+            
+            return `
+                <tr data-row-index="${index}" data-well-name="${normalized}">
+                    <td><input type="date" class="edit-table-input" name="date" value="${formatDateForInput(reading.date)}" readonly></td>
+                    <td><input type="number" class="edit-table-input" name="gasFreeLevel" value="${reading.gasFreeLevel || ''}" placeholder="-"></td>
+                    <td><input type="number" step="0.1" class="edit-table-input" name="spm" value="${reading.spm || ''}" placeholder="-"></td>
+                    <td><input type="number" class="edit-table-input" name="runTime" value="${runTimePercent}" placeholder="-"></td>
+                    <td><input type="number" class="edit-table-input" name="pumpIntakePressure" value="${reading.pumpIntakePressure || ''}" placeholder="-"></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    return `
+        <div class="edit-table-container">
+            <table class="edit-table" id="fluidLevelsEditTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Gas Free Level (ft)</th>
+                        <th>SPM</th>
+                        <th>Run Time (%)</th>
+                        <th>Pump Intake (psi)</th>
+                    </tr>
+                </thead>
+                <tbody id="fluidLevelsEditBody">
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </div>
+        <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+            Note: Manual edits will be preserved on re-upload of the Fluid Level Sheet.
+        </p>
+    `;
+}
+
+function initializeFluidLevelsHandlers() {
+    // No add/delete buttons needed - just edit existing readings
+    // All inputs are already present in the form
+}
+
+function readFluidLevelsForm() {
+    const tbody = document.getElementById('fluidLevelsEditBody');
+    const rows = tbody.querySelectorAll('tr');
+    const editedCells = {};
+
+    rows.forEach(row => {
+        const wellName = row.dataset.wellName;
+        const date = row.querySelector('input[name="date"]')?.value;
+        const gasFreeLevel = row.querySelector('input[name="gasFreeLevel"]')?.value;
+        const spm = row.querySelector('input[name="spm"]')?.value;
+        const runTime = row.querySelector('input[name="runTime"]')?.value;
+        const pumpIntakePressure = row.querySelector('input[name="pumpIntakePressure"]')?.value;
+
+        if (date) {
+            if (!editedCells[wellName]) {
+                editedCells[wellName] = {};
+            }
+            
+            editedCells[wellName][date] = {};
+            
+            // Only include fields that have values
+            if (gasFreeLevel !== '') {
+                editedCells[wellName][date].gasFreeLevel = Number(gasFreeLevel);
+            }
+            if (spm !== '') {
+                editedCells[wellName][date].spm = Number(spm);
+            }
+            if (runTime !== '') {
+                // Convert percentage back to decimal
+                editedCells[wellName][date].runTime = Number(runTime) / 100;
+            }
+            if (pumpIntakePressure !== '') {
+                editedCells[wellName][date].pumpIntakePressure = Number(pumpIntakePressure);
+            }
+        }
+    });
+
+    return editedCells;
 }

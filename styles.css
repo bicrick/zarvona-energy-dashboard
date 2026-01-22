@@ -4446,18 +4446,22 @@ tbody tr:nth-child(even) {
 }
 
 /* ============================================================================
-   Master Chemical Sheet View
+   Master Chemical Sheet & Fluid Levels Views
    ============================================================================ */
 
-.master-chemical-container {
+.master-chemical-container,
+.fluid-levels-container {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    padding: 1.5rem;
+    gap: 1.5rem;
 }
 
 /* Empty State */
-.master-chemical-empty {
+.master-chemical-empty,
+.fluid-levels-empty {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -4505,11 +4509,15 @@ tbody tr:nth-child(even) {
 }
 
 /* Content State */
-.master-chemical-content {
+.master-chemical-content,
+.fluid-levels-content {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
 }
 
 /* Toolbar */
@@ -4517,9 +4525,10 @@ tbody tr:nth-child(even) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.5rem;
+    padding: 1.25rem 1.5rem;
     background: var(--bg-card);
     border-bottom: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
     gap: 1rem;
     flex-wrap: wrap;
 }
@@ -4535,7 +4544,7 @@ tbody tr:nth-child(even) {
 .master-chemical-toolbar .toolbar-right {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.625rem;
 }
 
 .master-chemical-toolbar .search-box {
@@ -4546,7 +4555,7 @@ tbody tr:nth-child(even) {
 
 .master-chemical-toolbar .search-box svg {
     position: absolute;
-    left: 0.75rem;
+    left: 0.875rem;
     top: 50%;
     transform: translateY(-50%);
     stroke: var(--text-muted);
@@ -4555,10 +4564,11 @@ tbody tr:nth-child(even) {
 
 .master-chemical-toolbar .search-box input {
     width: 100%;
-    padding: 0.625rem 0.75rem 0.625rem 2.5rem;
+    height: 38px;
+    padding: 0 0.875rem 0 2.5rem;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 8px;
     color: var(--text-primary);
     font-size: 0.875rem;
     transition: all 0.2s;
@@ -4583,38 +4593,92 @@ tbody tr:nth-child(even) {
 .master-chemical-toolbar .stat-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.375rem 0.75rem;
+    height: 38px;
+    padding: 0 0.875rem;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 0.813rem;
     font-weight: 500;
     color: var(--text-secondary);
 }
 
-.master-chemical-toolbar .btn-export {
-    display: flex;
+.master-chemical-toolbar .btn-export,
+.master-chemical-toolbar .btn-edit-chemical,
+.master-chemical-toolbar .btn-save-chemical,
+.master-chemical-toolbar .btn-cancel-chemical {
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.625rem 1rem;
-    background: var(--accent);
-    color: white;
+    height: 38px;
+    padding: 0 1rem;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.master-chemical-toolbar .btn-export {
+    background: var(--accent);
+    color: white;
 }
 
 .master-chemical-toolbar .btn-export:hover {
     background: var(--accent-dark);
 }
 
-.master-chemical-toolbar .btn-export svg {
+.master-chemical-toolbar .btn-edit-chemical {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.master-chemical-toolbar .btn-edit-chemical:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+}
+
+.master-chemical-toolbar .btn-save-chemical {
+    background: var(--success);
+    color: white;
+}
+
+.master-chemical-toolbar .btn-save-chemical:hover {
+    opacity: 0.9;
+}
+
+.master-chemical-toolbar .btn-cancel-chemical {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.master-chemical-toolbar .btn-cancel-chemical:hover {
+    background: var(--bg-secondary);
+}
+
+.master-chemical-toolbar button svg {
     width: 16px;
     height: 16px;
     stroke: currentColor;
+    flex-shrink: 0;
+}
+
+.master-chemical-toolbar .changes-indicator {
+    display: inline-flex;
+    align-items: center;
+    height: 38px;
+    padding: 0 0.875rem;
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 8px;
+    font-size: 0.813rem;
+    font-weight: 500;
+    color: var(--warning);
 }
 
 /* Table Container */
@@ -4622,6 +4686,7 @@ tbody tr:nth-child(even) {
     flex: 1;
     overflow: auto;
     background: var(--bg-card);
+    border-radius: 0 0 12px 12px;
 }
 
 /* Table Styles */
@@ -4636,7 +4701,7 @@ tbody tr:nth-child(even) {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
 }
 
 .master-chemical-table th {
@@ -4702,14 +4767,13 @@ tbody tr:nth-child(even) {
 }
 
 .master-chemical-table td {
-    padding: 0.75rem 1rem;
+    padding: 0.875rem 1rem;
     color: var(--text-primary);
     border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
 }
 
-.master-chemical-table td:last-child {
-    border-right: none;
+.master-chemical-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .master-chemical-table td.well-name-cell {
@@ -4816,6 +4880,40 @@ tbody tr:nth-child(even) {
 .editable-cell-inline.empty-value:focus {
     opacity: 1;
     font-style: normal;
+}
+
+/* Fluid Level Editable Cells */
+.editable-cell-inline.fluid-level-editable {
+    cursor: text;
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid transparent;
+}
+
+.editable-cell-inline.fluid-level-editable:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.editable-cell-inline.fluid-level-editable:focus {
+    outline: none;
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Manual Edit Badge */
+.manual-edit-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: help;
+    vertical-align: middle;
+    opacity: 0.6;
+}
+
+.manual-edit-badge:hover {
+    opacity: 1;
 }
 
 /* Edit Mode Info Banner */
@@ -5179,7 +5277,7 @@ tbody tr:nth-child(even) {
     text-transform: uppercase;
     font-size: 0.6875rem;
     letter-spacing: 0.05em;
-    padding: 12px 16px;
+    padding: 0.875rem 1rem;
     text-align: left;
     border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
@@ -5255,124 +5353,9 @@ tbody tr:nth-child(even) {
     }
 }
 
-/* ============================================================================
-   Fluid Levels View
-   ============================================================================ */
+/* Empty state styling already defined above */
 
-.fluid-levels-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-/* Empty State */
-.fluid-levels-empty {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem 2rem;
-    text-align: center;
-    color: var(--text-secondary);
-}
-
-.fluid-levels-empty .empty-state-icon {
-    margin-bottom: 1.5rem;
-    color: var(--text-muted);
-    opacity: 0.6;
-}
-
-.fluid-levels-empty h3 {
-    color: var(--text-primary);
-    margin: 0 0 0.75rem 0;
-    font-size: 1.25rem;
-}
-
-.fluid-levels-empty p {
-    margin: 0.5rem 0;
-    color: var(--text-secondary);
-}
-
-.fluid-levels-empty .expected-filename {
-    margin-top: 1.5rem;
-    font-size: 0.875rem;
-    color: var(--text-muted);
-}
-
-.fluid-levels-empty code {
-    background-color: var(--bg-tertiary);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-family: 'Courier New', monospace;
-}
-
-/* Content Area */
-.fluid-levels-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-/* Toolbar */
-.fluid-levels-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.5rem;
-    background-color: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.fluid-levels-toolbar .toolbar-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex: 1;
-}
-
-.fluid-levels-toolbar .toolbar-right {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-/* Table Container */
-.fluid-levels-table-container {
-    flex: 1;
-    overflow: auto;
-    padding: 1.5rem;
-}
-
-.fluid-levels-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: var(--bg-secondary);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.fluid-levels-table thead {
-    background-color: var(--bg-tertiary);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.fluid-levels-table th {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    font-weight: 600;
-    font-size: 0.813rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    border-bottom: 2px solid var(--border-color);
-}
+/* Additional table-specific styles */
 
 .fluid-levels-table td {
     padding: 0.875rem 1rem;

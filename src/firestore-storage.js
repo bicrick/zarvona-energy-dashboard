@@ -1497,6 +1497,7 @@ export async function saveFluidLevelData(readings, progressCallback = null) {
             }
             
             // Merge readings by date (use Map to prevent duplicates)
+            // PRESERVE MANUAL EDITS: Don't overwrite readings that have been manually edited
             const readingsMap = new Map();
             
             // Add existing readings first
@@ -1505,10 +1506,18 @@ export async function saveFluidLevelData(readings, progressCallback = null) {
                 readingsMap.set(dateKey, reading);
             }
             
-            // Add/update with new readings
+            // Add/update with new readings, but preserve manual edits
             for (const reading of wellData.readings) {
                 const dateKey = reading.date.toDate().toISOString().split('T')[0];
-                readingsMap.set(dateKey, reading);
+                const existingReading = readingsMap.get(dateKey);
+                
+                // If existing reading has manual edits, preserve it; otherwise update
+                if (!existingReading || !existingReading.manuallyEdited) {
+                    readingsMap.set(dateKey, reading);
+                } else {
+                    // Keep manually edited reading - don't overwrite
+                    console.log(`Preserving manually edited reading for ${wellData.wellName} on ${dateKey}`);
+                }
             }
             
             // Convert back to array and sort by date (newest first)
@@ -1567,7 +1576,8 @@ export async function loadFluidLevelData(progressCallback = null) {
                     runTime: r.runTime,
                     gasLiquidLevel: r.gasLiquidLevel,
                     gasFreeLevel: r.gasFreeLevel,
-                    pumpIntakePressure: r.pumpIntakePressure
+                    pumpIntakePressure: r.pumpIntakePressure,
+                    manuallyEdited: r.manuallyEdited || false
                 })),
                 lastUpdated: data.lastUpdated?.toDate?.() || data.lastUpdated
             };
@@ -1583,6 +1593,95 @@ export async function loadFluidLevelData(progressCallback = null) {
         console.error('Error loading fluid level data:', error);
         appState.fluidLevels = {};
         return {};
+    }
+}
+
+/**
+ * Update fluid level readings with manual edits
+ * @param {object} editedCells - Object with structure: { normalizedWellName: { date: { field: value } } }
+ * @returns {Promise<boolean>} Success status
+ */
+export async function updateFluidLevelReadings(editedCells) {
+    try {
+        if (!editedCells || Object.keys(editedCells).length === 0) {
+            console.log('No changes to save');
+            return true;
+        }
+        
+        console.log('Updating fluid level readings with manual edits...');
+        
+        // Process each well
+        for (const [normalizedWellName, dateEdits] of Object.entries(editedCells)) {
+            const wellRef = doc(db, 'fluidLevels', normalizedWellName);
+            const wellDoc = await getDoc(wellRef);
+            
+            if (!wellDoc.exists()) {
+                console.warn(`Fluid level document not found for ${normalizedWellName}`);
+                continue;
+            }
+            
+            const wellData = wellDoc.data();
+            const readings = wellData.readings || [];
+            
+            // Update readings with manual edits
+            const updatedReadings = readings.map(reading => {
+                const dateKey = reading.date.toDate().toISOString().split('T')[0];
+                
+                if (dateEdits[dateKey]) {
+                    // This reading has manual edits
+                    const edits = dateEdits[dateKey];
+                    const updatedReading = { ...reading, manuallyEdited: true };
+                    
+                    // Apply edits
+                    if (edits.gasFreeLevel !== undefined) {
+                        updatedReading.gasFreeLevel = edits.gasFreeLevel;
+                    }
+                    if (edits.spm !== undefined) {
+                        updatedReading.spm = edits.spm;
+                    }
+                    if (edits.runTime !== undefined) {
+                        updatedReading.runTime = edits.runTime;
+                    }
+                    if (edits.pumpIntakePressure !== undefined) {
+                        updatedReading.pumpIntakePressure = edits.pumpIntakePressure;
+                    }
+                    
+                    return updatedReading;
+                }
+                
+                return reading;
+            });
+            
+            // Save updated readings
+            await setDoc(wellRef, {
+                readings: updatedReadings,
+                lastUpdated: Timestamp.now()
+            }, { merge: true });
+            
+            // Update appState
+            if (appState.fluidLevels[normalizedWellName]) {
+                appState.fluidLevels[normalizedWellName].readings = updatedReadings.map(r => ({
+                    date: r.date.toDate(),
+                    strokeLength: r.strokeLength,
+                    spm: r.spm,
+                    runTime: r.runTime,
+                    gasLiquidLevel: r.gasLiquidLevel,
+                    gasFreeLevel: r.gasFreeLevel,
+                    pumpIntakePressure: r.pumpIntakePressure,
+                    manuallyEdited: r.manuallyEdited || false
+                }));
+                appState.fluidLevels[normalizedWellName].lastUpdated = new Date();
+            }
+        }
+        
+        const wellCount = Object.keys(editedCells).length;
+        const readingCount = Object.values(editedCells).reduce((sum, dates) => sum + Object.keys(dates).length, 0);
+        console.log(`✓ Updated ${readingCount} readings across ${wellCount} wells with manual edits`);
+        
+        return true;
+    } catch (error) {
+        console.error('Error updating fluid level readings:', error);
+        throw error;
     }
 }
 

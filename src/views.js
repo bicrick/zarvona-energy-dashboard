@@ -1819,6 +1819,13 @@ function renderFluidLevels(wellName) {
 // FLUID LEVELS VIEW
 // ============================================================================
 
+// Fluid Levels Edit State
+const fluidLevelsEditState = {
+    editMode: false,
+    editedCells: {},  // { normalizedWellName: { date: { field: value } } }
+    originalValues: {}  // Track original values for cancel
+};
+
 /**
  * Show the Fluid Levels view
  */
@@ -1917,7 +1924,8 @@ function renderFluidLevelsTable(searchTerm = '') {
                 strokeLength: latest.strokeLength,
                 spm: latest.spm,
                 runTime: latest.runTime,
-                pumpIntakePressure: latest.pumpIntakePressure
+                pumpIntakePressure: latest.pumpIntakePressure,
+                manuallyEdited: latest.manuallyEdited || false
             });
         }
     }
@@ -1963,6 +1971,9 @@ function renderFluidLevelsTable(searchTerm = '') {
     }
     
     tableBody.innerHTML = filteredData.map(row => {
+        const normalizedWellName = row.wellName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const dateKey = row.latestDate.toISOString().split('T')[0];
+        
         const changeText = row.change !== null 
             ? `${row.change > 0 ? '+' : ''}${row.change.toFixed(0)} ft`
             : '-';
@@ -1975,20 +1986,54 @@ function renderFluidLevelsTable(searchTerm = '') {
                               : row.changeDirection === 'falling' ? ' ↓' 
                               : '';
         
+        // Manual edit indicator
+        const manualEditBadge = row.manuallyEdited ? 
+            '<span class="manual-edit-badge" title="Manually edited">✎</span> ' : '';
+        
+        // Helper function to render editable or static cell
+        const renderCell = (value, field, decimals = 0, suffix = '') => {
+            if (value === null) return '-';
+            
+            // Special handling for runTime - convert to percentage
+            let numericValue = value;
+            if (field === 'runTime') {
+                numericValue = value * 100;
+            }
+            
+            const displayValue = numericValue.toFixed(decimals) + suffix;
+            const originalValue = numericValue.toFixed(decimals);
+            
+            if (fluidLevelsEditState.editMode) {
+                return `<span class="editable-cell-inline fluid-level-editable" 
+                             contenteditable="true" 
+                             data-well-name="${normalizedWellName}"
+                             data-date="${dateKey}"
+                             data-field="${field}"
+                             data-original-value="${originalValue}">${displayValue}</span>`;
+            } else {
+                return displayValue;
+            }
+        };
+        
         return `
             <tr>
-                <td class="well-name-cell">${row.wellName}</td>
+                <td class="well-name-cell">${row.wellName}${manualEditBadge ? ' ' + manualEditBadge : ''}</td>
                 <td>${formatDate(row.latestDate)}</td>
-                <td class="numeric-cell">${row.latestGasFreeLevel !== null ? row.latestGasFreeLevel.toFixed(0) : '-'}</td>
+                <td class="numeric-cell">${renderCell(row.latestGasFreeLevel, 'gasFreeLevel', 0)}</td>
                 <td class="numeric-cell">${row.priorGasFreeLevel !== null ? row.priorGasFreeLevel.toFixed(0) : '-'}</td>
                 <td class="change-cell ${changeClass}">${changeText}${changeIndicator}</td>
                 <td>${row.strokeLength || '-'}</td>
-                <td class="numeric-cell">${row.spm !== null ? row.spm.toFixed(1) : '-'}</td>
-                <td>${row.runTime !== null ? (row.runTime * 100).toFixed(0) + '%' : '-'}</td>
-                <td class="numeric-cell">${row.pumpIntakePressure !== null ? row.pumpIntakePressure.toFixed(0) : '-'}</td>
+                <td class="numeric-cell">${renderCell(row.spm, 'spm', 1)}</td>
+                <td class="numeric-cell">${renderCell(row.runTime, 'runTime', 0, '%')}</td>
+                <td class="numeric-cell">${renderCell(row.pumpIntakePressure, 'pumpIntakePressure', 0)}</td>
             </tr>
         `;
     }).join('');
+    
+    // Add edit handlers if in edit mode
+    if (fluidLevelsEditState.editMode) {
+        attachFluidLevelsEditHandlers();
+    }
 }
 
 /**
@@ -2017,6 +2062,302 @@ function initializeFluidLevelsHandlers() {
         newBtn.addEventListener('click', () => {
             exportFluidLevelsCSV();
         });
+    }
+    
+    // Edit/Save/Cancel button handlers
+    initializeFluidLevelsEditButtons();
+}
+
+/**
+ * Initialize Edit/Save/Cancel button handlers for Fluid Levels
+ */
+function initializeFluidLevelsEditButtons() {
+    const editBtn = document.getElementById('btnEditFluidLevels');
+    const saveBtn = document.getElementById('btnSaveFluidLevels');
+    const cancelBtn = document.getElementById('btnCancelFluidLevels');
+    
+    if (editBtn) {
+        const newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        newEditBtn.addEventListener('click', enterFluidLevelsEditMode);
+    }
+    
+    if (saveBtn) {
+        const newSaveBtn = saveBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+        newSaveBtn.addEventListener('click', saveFluidLevelsChanges);
+    }
+    
+    if (cancelBtn) {
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        newCancelBtn.addEventListener('click', exitFluidLevelsEditMode);
+    }
+}
+
+/**
+ * Enter edit mode for Fluid Levels
+ */
+function enterFluidLevelsEditMode() {
+    fluidLevelsEditState.editMode = true;
+    fluidLevelsEditState.editedCells = {};
+    fluidLevelsEditState.originalValues = {};
+    
+    // Toggle button visibility
+    document.getElementById('btnEditFluidLevels').style.display = 'none';
+    document.getElementById('btnSaveFluidLevels').style.display = 'inline-flex';
+    document.getElementById('btnCancelFluidLevels').style.display = 'inline-flex';
+    
+    // Show edit mode info banner
+    const infoBanner = document.getElementById('fluidLevelsEditInfoBanner');
+    if (infoBanner) {
+        infoBanner.style.display = 'flex';
+        
+        // Add close button handler
+        const closeBtn = document.getElementById('btnCloseFluidLevelsEditInfo');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                infoBanner.style.display = 'none';
+            };
+        }
+    }
+    
+    // Re-render table with editable cells
+    renderFluidLevelsTable();
+}
+
+/**
+ * Exit edit mode for Fluid Levels
+ */
+function exitFluidLevelsEditMode() {
+    fluidLevelsEditState.editMode = false;
+    fluidLevelsEditState.editedCells = {};
+    fluidLevelsEditState.originalValues = {};
+    
+    // Reset save button state
+    const saveBtn = document.getElementById('btnSaveFluidLevels');
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        Save All Changes`;
+    }
+    
+    // Toggle button visibility
+    document.getElementById('btnEditFluidLevels').style.display = 'inline-flex';
+    document.getElementById('btnSaveFluidLevels').style.display = 'none';
+    document.getElementById('btnCancelFluidLevels').style.display = 'none';
+    document.getElementById('fluidLevelsChangesIndicator').style.display = 'none';
+    
+    // Hide edit mode info banner
+    const infoBanner = document.getElementById('fluidLevelsEditInfoBanner');
+    if (infoBanner) {
+        infoBanner.style.display = 'none';
+    }
+    
+    // Re-render table as read-only
+    renderFluidLevelsTable();
+}
+
+/**
+ * Save all fluid level changes to Firestore
+ */
+async function saveFluidLevelsChanges() {
+    if (Object.keys(fluidLevelsEditState.editedCells).length === 0) {
+        alert('No changes to save');
+        return;
+    }
+    
+    // Disable save button during save
+    const saveBtn = document.getElementById('btnSaveFluidLevels');
+    const cancelBtn = document.getElementById('btnCancelFluidLevels');
+    const originalSaveText = saveBtn.innerHTML;
+    
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    saveBtn.innerHTML = `<div class="spinner-mini"></div> Saving...`;
+    
+    try {
+        // Import the update function
+        const { updateFluidLevelReadings } = await import('./firestore-storage.js');
+        
+        // Save changes to Firestore
+        await updateFluidLevelReadings(fluidLevelsEditState.editedCells);
+        
+        // Exit edit mode
+        exitFluidLevelsEditMode();
+        
+        // Show success message
+        alert('Changes saved successfully!');
+    } catch (error) {
+        console.error('Error saving fluid level changes:', error);
+        alert('Error saving changes: ' + error.message);
+        
+        // Re-enable buttons
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.innerHTML = originalSaveText;
+    }
+}
+
+/**
+ * Attach edit handlers to all editable cells in Fluid Levels table
+ */
+function attachFluidLevelsEditHandlers() {
+    const editableCells = document.querySelectorAll('.editable-cell-inline.fluid-level-editable');
+    
+    editableCells.forEach(cell => {
+        // Focus event - store original value
+        cell.addEventListener('focus', (e) => {
+            const wellName = e.target.dataset.wellName;
+            const date = e.target.dataset.date;
+            const field = e.target.dataset.field;
+            const originalValue = e.target.dataset.originalValue;
+            
+            // Store original value for cancel
+            if (!fluidLevelsEditState.originalValues[wellName]) {
+                fluidLevelsEditState.originalValues[wellName] = {};
+            }
+            if (!fluidLevelsEditState.originalValues[wellName][date]) {
+                fluidLevelsEditState.originalValues[wellName][date] = {};
+            }
+            fluidLevelsEditState.originalValues[wellName][date][field] = originalValue;
+            
+            // Select all text
+            e.target.select();
+        });
+        
+        // Blur event - validate and track changes
+        cell.addEventListener('blur', (e) => {
+            validateAndTrackFluidLevelChange(e.target);
+        });
+        
+        // Keydown event - handle Enter and Escape
+        cell.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur();
+                
+                // Move to next editable cell
+                const allCells = Array.from(document.querySelectorAll('.editable-cell-inline.fluid-level-editable'));
+                const currentIndex = allCells.indexOf(e.target);
+                if (currentIndex < allCells.length - 1) {
+                    allCells[currentIndex + 1].focus();
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                // Revert to original value
+                e.target.textContent = e.target.dataset.originalValue;
+                e.target.classList.remove('modified');
+                e.target.blur();
+            }
+        });
+        
+        // Input event - validate numeric input
+        cell.addEventListener('input', (e) => {
+            let text = e.target.textContent;
+            
+            // Allow only numbers, decimal point, and negative sign
+            text = text.replace(/[^0-9.-]/g, '');
+            
+            // Prevent multiple decimal points
+            const parts = text.split('.');
+            if (parts.length > 2) {
+                text = parts[0] + '.' + parts.slice(1).join('');
+            }
+            
+            // Update if changed
+            if (text !== e.target.textContent) {
+                e.target.textContent = text;
+                
+                // Restore cursor position at end
+                const range = document.createRange();
+                const selection = window.getSelection();
+                if (e.target.firstChild) {
+                    range.setStart(e.target.firstChild, text.length);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Validate and track a fluid level cell change
+ */
+function validateAndTrackFluidLevelChange(cell) {
+    const wellName = cell.dataset.wellName;
+    const date = cell.dataset.date;
+    const field = cell.dataset.field;
+    const originalValue = cell.dataset.originalValue;
+    let newValue = cell.textContent.trim();
+    
+    // Remove % suffix if present (for runTime field)
+    if (newValue.endsWith('%')) {
+        newValue = newValue.slice(0, -1).trim();
+    }
+    
+    // Validate numeric input
+    if (newValue !== '' && isNaN(parseFloat(newValue))) {
+        // Invalid - revert to original
+        cell.textContent = originalValue + (field === 'runTime' ? '%' : '');
+        cell.classList.remove('modified');
+        return;
+    }
+    
+    // Check if changed from original
+    if (newValue !== originalValue) {
+        // Track the change
+        if (!fluidLevelsEditState.editedCells[wellName]) {
+            fluidLevelsEditState.editedCells[wellName] = {};
+        }
+        if (!fluidLevelsEditState.editedCells[wellName][date]) {
+            fluidLevelsEditState.editedCells[wellName][date] = {};
+        }
+        
+        let valueToStore = newValue === '' ? null : parseFloat(newValue);
+        
+        // Convert runTime back to decimal (from percentage)
+        if (field === 'runTime' && valueToStore !== null) {
+            valueToStore = valueToStore / 100;
+        }
+        
+        fluidLevelsEditState.editedCells[wellName][date][field] = valueToStore;
+        
+        cell.classList.add('modified');
+    } else {
+        // Value reverted to original - remove from tracking
+        if (fluidLevelsEditState.editedCells[wellName]?.[date]) {
+            delete fluidLevelsEditState.editedCells[wellName][date][field];
+            
+            // Clean up empty objects
+            if (Object.keys(fluidLevelsEditState.editedCells[wellName][date]).length === 0) {
+                delete fluidLevelsEditState.editedCells[wellName][date];
+            }
+            if (Object.keys(fluidLevelsEditState.editedCells[wellName]).length === 0) {
+                delete fluidLevelsEditState.editedCells[wellName];
+            }
+        }
+        
+        cell.classList.remove('modified');
+    }
+    
+    // Update changes indicator
+    const changeCount = Object.keys(fluidLevelsEditState.editedCells).reduce((sum, wellName) => {
+        return sum + Object.keys(fluidLevelsEditState.editedCells[wellName]).length;
+    }, 0);
+    
+    const indicator = document.getElementById('fluidLevelsChangesIndicator');
+    if (changeCount > 0) {
+        indicator.textContent = `${changeCount} reading${changeCount > 1 ? 's' : ''} modified`;
+        indicator.style.display = 'inline-block';
+    } else {
+        indicator.style.display = 'none';
     }
 }
 
