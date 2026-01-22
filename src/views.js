@@ -1819,13 +1819,6 @@ function renderFluidLevels(wellName) {
 // FLUID LEVELS VIEW
 // ============================================================================
 
-// Fluid Levels Edit State
-const fluidLevelsEditState = {
-    editMode: false,
-    editedCells: {},  // { normalizedWellName: { date: { field: value } } }
-    originalValues: {}  // Track original values for cancel
-};
-
 /**
  * Show the Fluid Levels view
  */
@@ -1916,6 +1909,8 @@ function renderFluidLevelsTable(searchTerm = '') {
             
             matchedData.push({
                 wellName: well.name,
+                wellId: well.id,
+                sheetId: well.sheetId,
                 latestDate: latest.date,
                 latestGasFreeLevel: latest.gasFreeLevel,
                 priorGasFreeLevel: prior ? prior.gasFreeLevel : null,
@@ -1988,52 +1983,29 @@ function renderFluidLevelsTable(searchTerm = '') {
         
         // Manual edit indicator
         const manualEditBadge = row.manuallyEdited ? 
-            '<span class="manual-edit-badge" title="Manually edited">✎</span> ' : '';
+            '<span class="manual-edit-badge" title="Manually edited">✎</span>' : '';
         
-        // Helper function to render editable or static cell
-        const renderCell = (value, field, decimals = 0, suffix = '') => {
-            if (value === null) return '-';
-            
-            // Special handling for runTime - convert to percentage
-            let numericValue = value;
-            if (field === 'runTime') {
-                numericValue = value * 100;
-            }
-            
-            const displayValue = numericValue.toFixed(decimals) + suffix;
-            const originalValue = numericValue.toFixed(decimals);
-            
-            if (fluidLevelsEditState.editMode) {
-                return `<span class="editable-cell-inline fluid-level-editable" 
-                             contenteditable="true" 
-                             data-well-name="${normalizedWellName}"
-                             data-date="${dateKey}"
-                             data-field="${field}"
-                             data-original-value="${originalValue}">${displayValue}</span>`;
-            } else {
-                return displayValue;
-            }
-        };
+        const runTimePercent = row.runTime !== null 
+            ? (row.runTime * 100).toFixed(0) + '%'
+            : '-';
         
         return `
-            <tr>
+            <tr class="clickable-row" data-well-id="${row.wellId}" data-sheet-id="${row.sheetId}">
                 <td class="well-name-cell">${row.wellName}${manualEditBadge ? ' ' + manualEditBadge : ''}</td>
                 <td>${formatDate(row.latestDate)}</td>
-                <td class="numeric-cell">${renderCell(row.latestGasFreeLevel, 'gasFreeLevel', 0)}</td>
+                <td class="numeric-cell">${row.latestGasFreeLevel !== null ? row.latestGasFreeLevel.toFixed(0) : '-'}</td>
                 <td class="numeric-cell">${row.priorGasFreeLevel !== null ? row.priorGasFreeLevel.toFixed(0) : '-'}</td>
                 <td class="change-cell ${changeClass}">${changeText}${changeIndicator}</td>
                 <td>${row.strokeLength || '-'}</td>
-                <td class="numeric-cell">${renderCell(row.spm, 'spm', 1)}</td>
-                <td class="numeric-cell">${renderCell(row.runTime, 'runTime', 0, '%')}</td>
-                <td class="numeric-cell">${renderCell(row.pumpIntakePressure, 'pumpIntakePressure', 0)}</td>
+                <td class="numeric-cell">${row.spm !== null ? row.spm.toFixed(1) : '-'}</td>
+                <td class="numeric-cell">${runTimePercent}</td>
+                <td class="numeric-cell">${row.pumpIntakePressure !== null ? row.pumpIntakePressure.toFixed(0) : '-'}</td>
             </tr>
         `;
     }).join('');
     
-    // Add edit handlers if in edit mode
-    if (fluidLevelsEditState.editMode) {
-        attachFluidLevelsEditHandlers();
-    }
+    // Add click handlers for navigation
+    attachFluidLevelsRowClickHandlers();
 }
 
 /**
@@ -2201,6 +2173,29 @@ async function saveFluidLevelsChanges() {
         cancelBtn.disabled = false;
         saveBtn.innerHTML = originalSaveText;
     }
+}
+
+/**
+ * Attach click handlers to rows for navigation
+ */
+function attachFluidLevelsRowClickHandlers() {
+    const rows = document.querySelectorAll('#fluidLevelsTable tbody tr.clickable-row');
+    
+    rows.forEach(row => {
+        row.addEventListener('click', () => {
+            const wellId = row.dataset.wellId;
+            const sheetId = row.dataset.sheetId;
+            showWellView(sheetId, wellId).then(() => {
+                // Scroll to fluid levels section after view loads
+                setTimeout(() => {
+                    const fluidLevelsCard = document.getElementById('fluidLevelsWellCard');
+                    if (fluidLevelsCard && fluidLevelsCard.style.display !== 'none') {
+                        fluidLevelsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 100);
+            });
+        });
+    });
 }
 
 /**

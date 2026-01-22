@@ -4792,6 +4792,23 @@ tbody tr:nth-child(even) {
     background: var(--bg-secondary);
 }
 
+.master-chemical-table tbody tr.clickable-row {
+    cursor: pointer;
+}
+
+.master-chemical-table tbody tr.clickable-row:hover {
+    background: var(--accent) !important;
+    color: white;
+}
+
+.master-chemical-table tbody tr.clickable-row:hover td {
+    color: white;
+}
+
+.master-chemical-table tbody tr.clickable-row:hover td.well-name-cell {
+    background: var(--accent) !important;
+}
+
 .master-chemical-table td.battery-name-cell {
     color: var(--text-secondary);
     font-size: 0.813rem;
