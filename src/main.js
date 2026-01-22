@@ -1,6 +1,6 @@
 import '../styles.css';
 import { initializeTheme, initializeThemeToggle } from './theme.js';
-import { loadNavigationData, loadDashboardData, loadChemicalProgramData } from './firestore-storage.js';
+import { loadNavigationData, loadDashboardData, loadChemicalProgramData, loadFluidLevelData } from './firestore-storage.js';
 import { initializeNavigation, initializeLogoHandler, initializeHamburgerToggle, refreshNavigation } from './navigation.js';
 import { initializeUploadHandlers, initializeBulkUploadHandlers } from './upload.js';
 import { initializeDashboardHandlers, setOnCacheCleared } from './dashboard.js';
@@ -50,6 +50,9 @@ async function loadDashboardSummaryInBackground() {
         
         // Load chemical program data
         await loadChemicalProgramData();
+        
+        // Load fluid level data
+        await loadFluidLevelData();
         
         // Mark loading as complete BEFORE rendering
         appState.isLoading = false;
