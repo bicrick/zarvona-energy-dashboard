@@ -8,10 +8,45 @@ import {
     OAuthProvider
 } from 'firebase/auth';
 import { auth } from './firebase.js';
+import { DEV_CONFIG } from './config.js';
 
 const ALLOWED_DOMAIN = '@zarvonaenergy.com';
 
 let authStateCallback = null;
+let bypassedAuth = false;
+
+/**
+ * Check if we should bypass authentication (localhost only)
+ * @returns {boolean}
+ */
+function shouldBypassAuth() {
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' ||
+                       window.location.hostname.includes('localhost');
+    return isLocalhost && !DEV_CONFIG.REQUIRE_LOGIN;
+}
+
+/**
+ * Create a mock user object for development bypass
+ * @returns {Object} Mock user object
+ */
+function createMockUser() {
+    return {
+        uid: 'dev-user-localhost',
+        email: 'dev@localhost',
+        displayName: 'Dev User',
+        photoURL: null,
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {
+            creationTime: new Date().toISOString(),
+            lastSignInTime: new Date().toISOString()
+        },
+        providerData: [],
+        // Mark this as a mock user for debugging
+        _isMockUser: true
+    };
+}
 
 /**
  * Initialize auth state observer
@@ -19,6 +54,20 @@ let authStateCallback = null;
  */
 export function initializeAuthObserver(callback) {
     authStateCallback = callback;
+    
+    // Check if we should bypass authentication on localhost
+    if (shouldBypassAuth()) {
+        bypassedAuth = true;
+        const mockUser = createMockUser();
+        
+        // Immediately call callback with mock user
+        if (authStateCallback) {
+            authStateCallback(mockUser);
+        }
+        return;
+    }
+    
+    // Normal authentication flow
     onAuthStateChanged(auth, (user) => {
         if (authStateCallback) {
             authStateCallback(user);
@@ -131,10 +180,16 @@ export async function signInWithMicrosoft() {
  */
 export async function signOut() {
     try {
+        // If using bypassed auth, just reload the page to "sign out"
+        if (bypassedAuth) {
+            bypassedAuth = false;
+            window.location.reload();
+            return { success: true };
+        }
+        
         await firebaseSignOut(auth);
         return { success: true };
     } catch (error) {
-        console.error('Sign out error:', error);
         return { success: false, error: error.message };
     }
 }
@@ -200,6 +255,9 @@ export async function resetPassword(email) {
  * @returns {User|null}
  */
 export function getCurrentUser() {
+    if (bypassedAuth) {
+        return createMockUser();
+    }
     return auth.currentUser;
 }
 

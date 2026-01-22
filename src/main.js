@@ -7,7 +7,7 @@ import { initializeDashboardHandlers, setOnCacheCleared } from './dashboard.js';
 import { updateWelcomeStats, showView, showWellView } from './views.js';
 import { setOnEditSave } from './edit-modal.js';
 import { initializeFailureModalHandlers } from './failure-modal.js';
-import { initializeAuthObserver, showLoginView, showApp, initializeLoginHandlers, signOut } from './auth.js';
+import { initializeAuthObserver, showLoginView, showApp, initializeLoginHandlers, signOut, getCurrentUser } from './auth.js';
 import { auth } from './firebase.js';
 import { appState } from './config.js';
 
@@ -83,7 +83,7 @@ function initializeUserMenu() {
     if (!userAvatarBtn || !userDropdown) return;
     
     // Get current user and display information
-    const user = auth.currentUser;
+    const user = getCurrentUser();
     if (user) {
         // Display email
         if (userEmail) {
@@ -143,11 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAuthObserver((user) => {
         if (user) {
             // User is signed in
-            console.log('User signed in:', user.email);
+            if (user._isMockUser) {
+                console.log('Auth bypassed - using mock user for localhost development');
+            } else {
+                console.log('User signed in:', user.email);
+            }
             initializeApp();
         } else {
             // No user signed in
-            console.log('User signed out');
             showLoginView();
             appInitialized = false;
         }

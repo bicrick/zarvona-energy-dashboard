@@ -15,6 +15,13 @@ export const GAUGE_SHEETS = [
 export const STORAGE_KEY = 'oilWellData';
 export const THEME_STORAGE_KEY = 'oilWellTheme';
 
+// Development configuration
+export const DEV_CONFIG = {
+    // Set to true to require login even on localhost (for testing login flow)
+    // Set to false to bypass login on localhost (for quick development)
+    REQUIRE_LOGIN: false
+};
+
 export const appState = {
     appData: {},
     currentSheet: null,
