@@ -18,8 +18,8 @@
     <!-- Chart.js for charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <script type="module" crossorigin src="/assets/index-Cue3MKgF.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CtkhXALJ.css">
+  <script type="module" crossorigin src="/assets/index-DjFYHplK.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Cl4leVJZ.css">
 </head>
 <body>
     <!-- Auth Loading Splash Screen -->
@@ -603,6 +603,8 @@
                                     <li>Mw-Wemac-Sabrina-Berkley.xlsx</li>
                                     <li>1-30 Unit 1H Gauge Sheet.xlsx</li>
                                     <li>ULS 3-5H Gauge Sheet.xlsx</li>
+                                    <li>Master Chemical Sheet.xlsx</li>
+                                    <li>West Texas Fluid Level Sheet.xlsx</li>
                                 </ol>
                             </section>
                         </div>
@@ -1057,6 +1059,78 @@
                         <div class="master-chemical-loading" id="masterChemicalLoading" style="display: none;">
                             <div class="loading-spinner"></div>
                             <p>Loading chemical data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fluid Levels View -->
+            <div id="fluidLevelsView" class="view">
+                <header class="view-header">
+                    <h2>Fluid Levels</h2>
+                    <span class="breadcrumb">Downhole fluid level tracking for all wells</span>
+                </header>
+
+                <div class="fluid-levels-container">
+                    <!-- Empty State -->
+                    <div class="fluid-levels-empty" id="fluidLevelsEmpty">
+                        <div class="empty-state-icon">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                        <h3>No Fluid Level data available</h3>
+                        <p>Upload the Fluid Level Sheet to view fluid levels for all wells.</p>
+                        <p class="expected-filename">Expected file: <code>West Texas Fluid Level Sheet.xlsx</code></p>
+                    </div>
+
+                    <!-- Data View -->
+                    <div class="fluid-levels-content" id="fluidLevelsContent" style="display: none;">
+                        <!-- Toolbar -->
+                        <div class="fluid-levels-toolbar">
+                            <div class="toolbar-left">
+                                <div class="search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <path d="m21 21-4.35-4.35"></path>
+                                    </svg>
+                                    <input type="text" id="fluidLevelsSearchInput" placeholder="Search by well name or battery...">
+                                </div>
+                                <div class="data-stats" id="fluidLevelsDataStats">
+                                    <span class="stat-badge">0 wells</span>
+                                </div>
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="btn-export" id="btnExportFluidLevelsCSV" title="Export to CSV">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Table Container -->
+                        <div class="fluid-levels-table-container">
+                            <table class="fluid-levels-table" id="fluidLevelsTable">
+                                <thead>
+                                    <tr id="fluidLevelsTableHeader">
+                                        <!-- Headers populated dynamically -->
+                                    </tr>
+                                </thead>
+                                <tbody id="fluidLevelsTableBody">
+                                    <!-- Rows populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div class="fluid-levels-loading" id="fluidLevelsLoading" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <p>Loading fluid level data...</p>
                         </div>
                     </div>
                 </div>
