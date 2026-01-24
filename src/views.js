@@ -894,7 +894,7 @@ export async function showWellView(sheetId, wellId) {
     // Render all well data
     renderProductionCharts(well);
     renderWellTestTable(well.wellTests || []);
-    renderPumpEfficiency(well.pumpEfficiency || null);
+    renderPumpEfficiency(well.pumpEfficiency || null, well.wellTests || []);
     renderChemicalProgram(well.chemicalProgram || {}, matchedChemicalProgram, well.name);
     renderFailureHistory(well.failureHistory || []);
     renderActionList('wellActionList', well.actionItems || []);
@@ -1122,7 +1122,7 @@ function renderWellTestTable(wellTests) {
     }).join('');
 }
 
-function renderPumpEfficiency(pumpEfficiency) {
+function renderPumpEfficiency(pumpEfficiency, wellTests = []) {
     if (!pumpEfficiency) {
         // Hide the entire card if no data
         const card = document.querySelector('#pumpEfficiencyTable').closest('.card');
@@ -1153,8 +1153,9 @@ function renderPumpEfficiency(pumpEfficiency) {
     
     // Calculate Theoretical BFPD using the formula: pump_size^2 * run_time * spm * stroke_length * 0.1165
     const hasAllValues = pumpEfficiency.pumpSize && pumpEfficiency.runTime && pumpEfficiency.spm && pumpEfficiency.strokeLength;
+    let theoreticalBFPD = null;
     if (hasAllValues) {
-        const theoreticalBFPD = Math.round(
+        theoreticalBFPD = Math.round(
             Math.pow(pumpEfficiency.pumpSize, 2) * 
             pumpEfficiency.runTime * 
             pumpEfficiency.spm * 
@@ -1164,6 +1165,40 @@ function renderPumpEfficiency(pumpEfficiency) {
         document.getElementById('pumpTheoretical').textContent = `${theoreticalBFPD} bbl/day`;
     } else {
         document.getElementById('pumpTheoretical').textContent = '-';
+    }
+    
+    // Calculate Test BFPD from latest non-zero well test
+    let testBFPD = null;
+    if (wellTests && wellTests.length > 0) {
+        // Filter tests with both non-zero oil and water values
+        const validTests = wellTests.filter(test => 
+            test.oil != null && test.oil > 0 && 
+            test.water != null && test.water > 0
+        );
+        
+        if (validTests.length > 0) {
+            // Sort by date descending (newest first)
+            const sortedTests = [...validTests].sort((a, b) => 
+                new Date(b.date) - new Date(a.date)
+            );
+            
+            // Get the latest test
+            const latestTest = sortedTests[0];
+            testBFPD = Math.round(latestTest.oil + latestTest.water);
+            document.getElementById('pumpTestBFPD').textContent = `${testBFPD} bbl/day`;
+        } else {
+            document.getElementById('pumpTestBFPD').textContent = '-';
+        }
+    } else {
+        document.getElementById('pumpTestBFPD').textContent = '-';
+    }
+    
+    // Calculate Efficiency % (Test BFPD / Theoretical BFPD)
+    if (testBFPD !== null && theoreticalBFPD !== null && theoreticalBFPD > 0) {
+        const efficiencyPercent = Math.round((testBFPD / theoreticalBFPD) * 100);
+        document.getElementById('pumpEfficiencyPercent').textContent = `${efficiencyPercent}%`;
+    } else {
+        document.getElementById('pumpEfficiencyPercent').textContent = '-';
     }
 }
 
