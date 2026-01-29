@@ -4935,6 +4935,15 @@ tbody tr:nth-child(even) {
     font-size: 0.813rem;
 }
 
+/* Delta styling for Aries table */
+.master-chemical-table td.delta-rising {
+    color: #22c55e;
+}
+
+.master-chemical-table td.delta-falling {
+    color: #ef4444;
+}
+
 /* Aries Editable Column Header Styles */
 .editable-column-header {
     position: relative;

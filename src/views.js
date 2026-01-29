@@ -2893,6 +2893,33 @@ function renderAriesTable(oilValues, gasValues, testData = []) {
             ? testValues.gasTest 
             : '';
         
+        // Calculate deltas (only if both values are valid and non-zero)
+        let deltaOilValue = '';
+        let deltaOilClass = '';
+        if (oilTest !== '' && ariesOil !== '' && oilTest !== 0 && ariesOil !== 0) {
+            const delta = Math.round(oilTest - ariesOil);
+            if (delta > 0) {
+                deltaOilValue = `${delta} ↑`;
+                deltaOilClass = 'delta-rising';
+            } else if (delta < 0) {
+                deltaOilValue = `${Math.abs(delta)} ↓`;
+                deltaOilClass = 'delta-falling';
+            }
+        }
+        
+        let deltaGasValue = '';
+        let deltaGasClass = '';
+        if (gasTest !== '' && ariesGas !== '' && gasTest !== 0 && ariesGas !== 0) {
+            const delta = Math.round(gasTest - ariesGas);
+            if (delta > 0) {
+                deltaGasValue = `${delta} ↑`;
+                deltaGasClass = 'delta-rising';
+            } else if (delta < 0) {
+                deltaGasValue = `${Math.abs(delta)} ↓`;
+                deltaGasClass = 'delta-falling';
+            }
+        }
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="well-name-cell">${escapeHtml(wellName)}</td>
@@ -2902,8 +2929,8 @@ function renderAriesTable(oilValues, gasValues, testData = []) {
             <td>${ariesGas}</td>
             <td>${oilTest}</td>
             <td>${gasTest}</td>
-            <td></td>
-            <td></td>
+            <td class="${deltaOilClass}">${deltaOilValue}</td>
+            <td class="${deltaGasClass}">${deltaGasValue}</td>
         `;
         tableBody.appendChild(tr);
     });
