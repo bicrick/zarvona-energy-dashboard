@@ -1291,8 +1291,22 @@
                             <thead>
                                 <tr>
                                     <th>Well/Battery</th>
-                                    <th>Oil (MBOE)</th>
-                                    <th>Gas (MMCF)</th>
+                                    <th class="editable-column-header">
+                                        Oil (MBOE)
+                                        <button class="btn-edit-aries" data-column="oilMBOE" title="Edit Oil values">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                            </svg>
+                                        </button>
+                                    </th>
+                                    <th class="editable-column-header">
+                                        Gas (MMCF)
+                                        <button class="btn-edit-aries" data-column="gasMCF" title="Edit Gas values">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                            </svg>
+                                        </button>
+                                    </th>
                                     <th>Aries Oil</th>
                                     <th>Aries Gas</th>
                                     <th>Oil Test</th>
@@ -1305,6 +1319,46 @@
                                 <!-- Rows populated dynamically -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Aries Column Edit Modal -->
+                <div class="edit-modal" id="ariesEditModal">
+                    <div class="edit-modal-overlay" id="ariesEditModalOverlay"></div>
+                    <div class="edit-modal-content aries-edit-modal">
+                        <div class="edit-modal-header">
+                            <h3 id="ariesEditModalTitle">Edit Column</h3>
+                            <button class="btn-close-modal" id="btnCloseAriesEditModal">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="edit-modal-body">
+                            <form id="ariesEditForm" class="aries-edit-form">
+                                <div class="form-group">
+                                    <label for="ariesColumnValues">Paste values (one per line, empty lines are allowed) <span class="required">*</span></label>
+                                    <textarea id="ariesColumnValues" rows="12" placeholder="2.64
+
+
+0.09
+0.08
+
+..."></textarea>
+                                    <div class="form-hint">
+                                        <span id="ariesValueCount" class="value-count">0</span> of <strong>46</strong> lines (empty lines count)
+                                    </div>
+                                </div>
+                                
+                                <div id="ariesEditError" class="error-message" style="display: none;"></div>
+                                <div id="ariesEditSuccess" class="success-message" style="display: none;"></div>
+                            </form>
+                        </div>
+                        <div class="edit-modal-footer">
+                            <button type="button" class="btn-cancel" id="btnCancelAriesEdit">Cancel</button>
+                            <button type="submit" class="btn-save" id="btnSaveAriesEdit" form="ariesEditForm">Save</button>
+                        </div>
                     </div>
                 </div>
             </div>

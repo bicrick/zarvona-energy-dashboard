@@ -2133,3 +2133,95 @@ export async function matchChemicalProgramsToExistingWells(progressCallback = nu
         throw error;
     }
 }
+
+// ============================================================================
+// ARIES DATA - SAVE/LOAD FUNCTIONS
+// ============================================================================
+
+/**
+ * Save Aries column data to Firestore
+ * @param {string} column - Column name ('oilMBOE' or 'gasMCF')
+ * @param {array} values - Array of string values (46 items)
+ * @returns {Promise<boolean>} Success status
+ */
+export async function saveAriesColumnData(column, values) {
+    try {
+        console.log(`Saving Aries ${column} column data...`);
+        
+        if (!values || !Array.isArray(values)) {
+            console.error('Values must be an array');
+            return false;
+        }
+        
+        if (values.length !== 46) {
+            console.error(`Expected 46 values, got ${values.length}`);
+            return false;
+        }
+        
+        const ariesRef = doc(db, 'ariesData', 'columns');
+        
+        // Get existing data to merge
+        const existingDoc = await getDoc(ariesRef);
+        const existingData = existingDoc.exists() ? existingDoc.data() : {};
+        
+        // Update the specific column
+        const updates = {
+            ...existingData,
+            [column]: values,
+            lastUpdated: Timestamp.now()
+        };
+        
+        await setDoc(ariesRef, updates);
+        
+        // Update appState
+        if (!appState.ariesData) {
+            appState.ariesData = {};
+        }
+        appState.ariesData[column] = values;
+        
+        console.log(`✓ Saved ${column} column data successfully`);
+        return true;
+    } catch (error) {
+        console.error('Error saving Aries column data:', error);
+        return false;
+    }
+}
+
+/**
+ * Load Aries data from Firestore
+ * @returns {Promise<object>} Object with oilMBOE and gasMCF arrays
+ */
+export async function loadAriesData() {
+    try {
+        console.log('Loading Aries data...');
+        
+        const ariesRef = doc(db, 'ariesData', 'columns');
+        const ariesDoc = await getDoc(ariesRef);
+        
+        if (!ariesDoc.exists()) {
+            console.log('No Aries data found in Firestore');
+            appState.ariesData = {
+                oilMBOE: [],
+                gasMCF: []
+            };
+            return appState.ariesData;
+        }
+        
+        const data = ariesDoc.data();
+        appState.ariesData = {
+            oilMBOE: data.oilMBOE || [],
+            gasMCF: data.gasMCF || [],
+            lastUpdated: data.lastUpdated?.toDate?.() || data.lastUpdated
+        };
+        
+        console.log(`✓ Loaded Aries data`);
+        return appState.ariesData;
+    } catch (error) {
+        console.error('Error loading Aries data:', error);
+        appState.ariesData = {
+            oilMBOE: [],
+            gasMCF: []
+        };
+        return appState.ariesData;
+    }
+}

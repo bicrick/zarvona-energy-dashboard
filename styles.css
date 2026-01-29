@@ -4935,6 +4935,119 @@ tbody tr:nth-child(even) {
     font-size: 0.813rem;
 }
 
+/* Aries Editable Column Header Styles */
+.editable-column-header {
+    position: relative;
+    padding-right: 2.5rem !important;
+}
+
+.btn-edit-aries {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin-left: 0.5rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    vertical-align: middle;
+}
+
+.btn-edit-aries:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-edit-aries svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+/* Aries Edit Modal Styles */
+.edit-modal-content.aries-edit-modal {
+    max-width: 550px;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.aries-edit-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.aries-edit-form label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.aries-edit-form .required {
+    color: var(--error);
+    margin-left: 0.25rem;
+}
+
+.aries-edit-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.aries-edit-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-card);
+}
+
+.aries-edit-form .form-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    font-size: 0.813rem;
+    color: var(--text-secondary);
+}
+
+.aries-edit-form .value-count {
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+}
+
+.aries-edit-form .error-message,
+.aries-edit-form .success-message {
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+}
+
+.aries-edit-form .error-message {
+    background: rgba(248, 113, 113, 0.1);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+}
+
+.aries-edit-form .success-message {
+    background: rgba(52, 211, 153, 0.1);
+    color: var(--success);
+    border: 1px solid var(--success);
+}
+
 /* Loading State */
 .master-chemical-loading {
     flex: 1;

@@ -21,6 +21,12 @@ service cloud.firestore {
       allow read, write: if isAuthenticatedOrDev();
     }
     
+    // Aries data collection (Oil/Gas forecast columns)
+    // All authenticated users can read and write (shared data model)
+    match /ariesData/{docId} {
+      allow read, write: if isAuthenticatedOrDev();
+    }
+    
     // Gauge sheets and all nested collections
     // All authenticated users can read and write (shared data model)
     match /gaugeSheets/{sheetId} {
