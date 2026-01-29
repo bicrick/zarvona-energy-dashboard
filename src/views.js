@@ -70,7 +70,8 @@ export function showView(viewName) {
         waterChart: 'waterChartView',
         gasChart: 'gasChartView',
         masterChemical: 'masterChemicalView',
-        fluidLevels: 'fluidLevelsView'
+        fluidLevels: 'fluidLevelsView',
+        aries: 'ariesView'
     };
 
     const viewId = viewMap[viewName];
@@ -2634,4 +2635,79 @@ function exportFluidLevelsCSV() {
     
     const filename = `Fluid_Levels_${new Date().toISOString().split('T')[0]}.csv`;
     downloadCSV(csvData, headers, filename);
+}
+
+export function showAriesView() {
+    showView('aries');
+    setActiveNavItem(document.getElementById('nav-aries'));
+    
+    // Hardcoded Aries data
+    const ariesData = [
+        { wellBattery: 'POLARIS 1', oilMBOE: '2.64', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'LINK 3', oilMBOE: '0.09', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'LINK 2', oilMBOE: '0.08', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'LINK 4', oilMBOE: '0.06', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'LINK 5', oilMBOE: '0.24', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'LINK 6', oilMBOE: '0.09', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'ROSEBUD 20 1', oilMBOE: '0.12', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'ROSEBUD 20 3', oilMBOE: '0.11', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'ROSEBUD 20 4', oilMBOE: '0.17', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'SHUSA 14 LEASE', oilMBOE: '1.60', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'SHUSA 15 LEASE', oilMBOE: '3.10', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'SHUSA 20 LEASE', oilMBOE: '0.49', gasMCF: '', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'BIG MAX 1 # 1', oilMBOE: '0.14', gasMCF: '0.43', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'BIG MAX 11 # 1', oilMBOE: '0.30', gasMCF: '0.67', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'BIG MAX 11 # 2', oilMBOE: '0.15', gasMCF: '0.37', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'BIG MAX 1-1 UNIT 1H', oilMBOE: '1.08', gasMCF: '5.06', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'BIG MAX 14 SE # 4', oilMBOE: '0.12', gasMCF: '0.38', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'JANE 2', oilMBOE: '0.06', gasMCF: '0.00', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'MCCOLLUM - MILES 1', oilMBOE: '0.12', gasMCF: '0.00', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-3 #1H', oilMBOE: '0.86', gasMCF: '2.58', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-3 #3H', oilMBOE: '0.33', gasMCF: '2.37', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-3 #5H', oilMBOE: '1.14', gasMCF: '3.41', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-3 #7H', oilMBOE: '0.94', gasMCF: '3.76', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-30 #6H', oilMBOE: '0.94', gasMCF: '6.60', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-30 UNIT #1H', oilMBOE: '0.85', gasMCF: '6.79', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-30 UNIT 8H', oilMBOE: '1.42', gasMCF: '8.51', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-31 #2H', oilMBOE: '0.95', gasMCF: '6.63', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-36 #1H', oilMBOE: '0.35', gasMCF: '1.23', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-36 #2H', oilMBOE: '0.31', gasMCF: '0.93', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-36 #3H', oilMBOE: '0.36', gasMCF: '3.07', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-36 #4H', oilMBOE: '0.32', gasMCF: '6.41', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-36 #5H', oilMBOE: '0.38', gasMCF: '3.77', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-36 #6H', oilMBOE: '0.47', gasMCF: '4.53', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-37 #1H', oilMBOE: '0.64', gasMCF: '4.17', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-37 #3H', oilMBOE: '0.70', gasMCF: '6.73', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-37 #4H', oilMBOE: '0.53', gasMCF: '6.04', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 1-37 #6H', oilMBOE: '0.97', gasMCF: '8.63', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 30 COBRA 3012', oilMBOE: '0.10', gasMCF: '0.23', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 30 COBRA 5H', oilMBOE: '0.22', gasMCF: '0.67', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 7 BERKLEY 5', oilMBOE: '0.21', gasMCF: '0.24', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'UNIVERSITY 7 BERKLEY 6', oilMBOE: '0.44', gasMCF: '1.70', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'WEMAC SOUTH (WOLFCAMP) UNIT 7', oilMBOE: '0.18', gasMCF: '0.00', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'COWDEN 601H', oilMBOE: '1.38', gasMCF: '2.58', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'COWDEN 602 H', oilMBOE: '1.61', gasMCF: '2.19', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'COWDEN ANGUS H', oilMBOE: '2.69', gasMCF: '2.61', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' },
+        { wellBattery: 'SAWGRASS 5H', oilMBOE: '0.75', gasMCF: '6.00', ariesOil: '', ariesGas: '', oilTest: '', gasTest: '', deltaOil: '', deltaGas: '' }
+    ];
+    
+    // Render the table
+    const tableBody = document.getElementById('ariesTableBody');
+    tableBody.innerHTML = '';
+    
+    ariesData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="well-name-cell">${escapeHtml(row.wellBattery)}</td>
+            <td>${row.oilMBOE}</td>
+            <td>${row.gasMCF}</td>
+            <td>${row.ariesOil}</td>
+            <td>${row.ariesGas}</td>
+            <td>${row.oilTest}</td>
+            <td>${row.gasTest}</td>
+            <td>${row.deltaOil}</td>
+            <td>${row.deltaGas}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
 }

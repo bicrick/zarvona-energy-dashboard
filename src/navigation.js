@@ -1,5 +1,5 @@
 import { GAUGE_SHEETS, appState } from './config.js';
-import { showView, updateWelcomeStats, showGaugeSheetView, showWellView, showBatteryView, showMasterChemicalView, showFluidLevelsView } from './views.js';
+import { showView, updateWelcomeStats, showGaugeSheetView, showWellView, showBatteryView, showMasterChemicalView, showFluidLevelsView, showAriesView } from './views.js';
 import { showOilChartView, showWaterChartView, showGasChartView } from './charts/aggregate.js';
 import { loadWellsList } from './firestore-storage.js';
 
@@ -55,6 +55,11 @@ export function initializeNavigation() {
         { id: 'nav-master-chemical', label: 'Master Chemical Sheet', icon: 'chemical', action: () => showMasterChemicalView() }
     ]);
     navTree.appendChild(chemicalSection);
+
+    const ariesSection = createNavSection('Aries', 'aries-section', [
+        { id: 'nav-aries', label: 'Aries', icon: 'chart', action: () => showAriesView() }
+    ]);
+    navTree.appendChild(ariesSection);
 
     const fluidLevelsSection = createNavSection('Fluid Levels', 'fluid-levels-section', [
         { id: 'nav-fluid-levels', label: 'Fluid Levels', icon: 'fluidLevel', action: () => showFluidLevelsView() }
