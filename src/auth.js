@@ -312,6 +312,11 @@ export function showLoginView() {
     const loginView = document.getElementById('loginView');
     const appContainer = document.querySelector('.app-container');
     
+    // Store the current URL hash so we can restore it after login (deep linking)
+    import('./router.js').then(({ setPendingRoute }) => {
+        setPendingRoute();
+    });
+    
     // Hide splash first
     hideAuthSplash();
     

@@ -11,6 +11,7 @@ import { initializeDiagramModalHandlers } from './diagram-modal.js';
 import { initializeAuthObserver, showLoginView, showApp, initializeLoginHandlers, signOut, getCurrentUser } from './auth.js';
 import { auth } from './firebase.js';
 import { appState } from './config.js';
+import { initRouter } from './router.js';
 
 let appInitialized = false;
 
@@ -35,9 +36,11 @@ async function initializeApp() {
     initializeThemeToggle();
     initializeUserMenu();
     
-    // Show the app immediately with loading states
-    showView('welcome');
+    // Show the app immediately
     showApp();
+    
+    // Initialize router - this will navigate to the URL-specified view or dashboard
+    initRouter();
     
     appInitialized = true;
     

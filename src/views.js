@@ -8,6 +8,7 @@ import { attachDiagramButtonHandler } from './diagram-modal.js';
 import { loadWellDetails, loadWellsList, loadDashboardData as refreshDashboardData, loadSheetAggregateData, loadMasterChemicalData, updateChemicalProgramValues } from './firestore-storage.js';
 import { findChemicalProgramMatch } from './chemical-matcher.js';
 import { setActiveNavItem } from './navigation.js';
+import { updateURL } from './router.js';
 
 // Master Chemical Sheet Edit Mode State
 const chemicalEditState = {
@@ -130,12 +131,17 @@ export async function showGaugeSheetView(sheetId) {
     renderWellsGrid(sheetId);
 }
 
-export async function showBatteryView(sheetId) {
+export async function showBatteryView(sheetId, { skipHistory = false } = {}) {
     const sheetConfig = GAUGE_SHEETS.find(s => s.id === sheetId);
     if (!sheetConfig) return;
 
     appState.currentSheet = sheetId;
     showView('battery');
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('battery', { sheetId });
+    }
 
     // Update header
     document.getElementById('batteryName').textContent = sheetConfig.name;
@@ -164,9 +170,14 @@ export async function showBatteryView(sheetId) {
     renderBatteryWellsGrid(sheetId);
 }
 
-export async function showMasterChemicalView() {
+export async function showMasterChemicalView({ skipHistory = false } = {}) {
     showView('masterChemical');
     setActiveNavItem(document.getElementById('nav-master-chemical'));
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('chemical');
+    }
     
     const emptyState = document.getElementById('masterChemicalEmpty');
     const contentState = document.getElementById('masterChemicalContent');
@@ -857,7 +868,7 @@ function renderBatteryWellsGrid(sheetId) {
     });
 }
 
-export async function showWellView(sheetId, wellId) {
+export async function showWellView(sheetId, wellId, { skipHistory = false } = {}) {
     const sheetData = appState.appData[sheetId];
     if (!sheetData) return;
 
@@ -872,6 +883,11 @@ export async function showWellView(sheetId, wellId) {
     appState.currentSheet = sheetId;
     appState.currentWell = wellId;
     showView('well');
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('well', { sheetId, wellId });
+    }
 
     const sheetConfig = GAUGE_SHEETS.find(s => s.id === sheetId);
 
@@ -1919,9 +1935,14 @@ function renderFluidLevels(wellName) {
 /**
  * Show the Fluid Levels view
  */
-export async function showFluidLevelsView() {
+export async function showFluidLevelsView({ skipHistory = false } = {}) {
     showView('fluidLevels');
     setActiveNavItem(document.getElementById('nav-fluid-levels'));
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('fluidLevels');
+    }
     
     const emptyState = document.getElementById('fluidLevelsEmpty');
     const content = document.getElementById('fluidLevelsContent');
@@ -2842,9 +2863,14 @@ function getAriesWellTestData() {
     return testData;
 }
 
-export async function showAriesView() {
+export async function showAriesView({ skipHistory = false } = {}) {
     showView('aries');
     setActiveNavItem(document.getElementById('nav-aries'));
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('aries');
+    }
     
     // Load Aries data from Firestore
     const { loadAriesData } = await import('./firestore-storage.js');

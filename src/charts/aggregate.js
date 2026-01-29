@@ -2,9 +2,15 @@ import { appState, GAUGE_SHEETS } from '../config.js';
 import { hasUploadedData, getBatteryProductionTimeSeries } from '../data-aggregation.js';
 import { showView } from '../views.js';
 import { loadSheetAggregateData } from '../firestore-storage.js';
+import { updateURL } from '../router.js';
 
-export async function showOilChartView(startDate = null, endDate = null) {
+export async function showOilChartView(startDate = null, endDate = null, { skipHistory = false } = {}) {
     showView('oilChart');
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('oil', { startDate, endDate });
+    }
     
     // Load battery production data only (not full well details)
     await ensureAggregateDataLoaded('oil');
@@ -12,8 +18,13 @@ export async function showOilChartView(startDate = null, endDate = null) {
     renderAggregateChart('oil', startDate, endDate);
 }
 
-export async function showWaterChartView(startDate = null, endDate = null) {
+export async function showWaterChartView(startDate = null, endDate = null, { skipHistory = false } = {}) {
     showView('waterChart');
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('water', { startDate, endDate });
+    }
     
     // Load battery production data only (not full well details)
     await ensureAggregateDataLoaded('water');
@@ -21,8 +32,13 @@ export async function showWaterChartView(startDate = null, endDate = null) {
     renderAggregateChart('water', startDate, endDate);
 }
 
-export async function showGasChartView(startDate = null, endDate = null) {
+export async function showGasChartView(startDate = null, endDate = null, { skipHistory = false } = {}) {
     showView('gasChart');
+    
+    // Update URL hash
+    if (!skipHistory) {
+        updateURL('gas', { startDate, endDate });
+    }
     
     // Load battery production data only (not full well details)
     await ensureAggregateDataLoaded('gas');
